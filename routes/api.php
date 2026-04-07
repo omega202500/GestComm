@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
+
 // Route de test PING (AJOUTEZ CECI)
 Route::get('/ping', function() {
     return response()->json([
@@ -24,12 +25,13 @@ Route::get('/ping', function() {
 
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/login-simple', function() {
-    return response()->json([
-        'success' => true,
-        'message' => 'Route simple fonctionne',
-        'data' => request()->all()
-    ]);
+Route::get('/test-db-connection', function() {
+    try {
+        DB::connection()->getPdo();
+        return response()->json(['success' => true, 'message' => 'Connexion DB réussie']);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage()]);
+    }
 });
 
 // ======================
