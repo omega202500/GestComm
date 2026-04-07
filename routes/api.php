@@ -11,7 +11,7 @@ use App\Http\Controllers\VersementController;
 use App\Http\Controllers\ZoneController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
+use Illuminate\Support\Facades\DB; 
 
 
 // Route de test PING (AJOUTEZ CECI)
