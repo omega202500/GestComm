@@ -1153,7 +1153,7 @@
    {{-- ===== TOPBAR MOBILE (visible uniquement sur mobile, EN DEHORS du container-fluid) ===== --}}
 <div class="mobile-topbar d-flex d-md-none align-items-center justify-content-between px-3 py-2">
     <div class="d-flex align-items-center gap-2">
-        <img src="{{ asset('images/icon.png') }}" alt="GestComm" class="logo-img-icon" style="width:40px;height:40px;">
+        <img src="{{ asset('images/icon.png') }}" alt="GestComm" class="logo-img-icon" style="width:60px;height:60px;">
         <span class="fw-bold text-white fs-5">GestComm</span>
     </div>
     <button class="btn btn-link text-white p-0 fs-2 lh-1" type="button"
