@@ -536,6 +536,52 @@
             color: #e4e4e7;
         }
 
+        /* ===== LOGO IMAGE ARRONDIE ===== */
+        .logo-img-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            object-fit: cover;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .logo-img-icon:hover {
+            transform: scale(1.06);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+        }
+
+        /* ===== TOPBAR MOBILE ===== */
+        .mobile-topbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        /* ===== OFFCANVAS SIDEBAR MOBILE ===== */
+        .sidebar-offcanvas {
+            background-color: white;
+        }
+
+        .sidebar-offcanvas .sidebar {
+            min-height: unset;
+            box-shadow: none;
+        }
+
+        body.dark-theme .sidebar-offcanvas {
+            background-color: #18181b;
+        }
+
+        body.dark-theme .mobile-topbar {
+            background: linear-gradient(135deg, #2d2d35, #1a1a1f);
+            border-bottom: 1px solid #3a3a42;
+        }
+
+      
+
         /* Header avec logo amélioré */
        .sidebar-header {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -1068,6 +1114,13 @@
             background: linear-gradient(to right, transparent, #e0e0e0, transparent);
             margin: 2rem 0;
         }
+          /* ===== AJUSTEMENT MAIN CONTENT MOBILE ===== */
+        @media (max-width: 767px) {
+            .col-md-9.ms-sm-auto {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -1097,137 +1150,249 @@
 </head>
 
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar p-0">
-                <!-- En-tête amélioré avec logo -->
-                <div class="sidebar-header">
-                    <div class="logo-container">
-                        <div class="logo-icon">
-                            <i class="bi bi-building"></i>
-                        </div>
-                        <div class="logo-text">
-                            <h4>GestComm</h4>
-                        </div>
-                    </div>
-                </div>
+   {{-- ===== TOPBAR MOBILE (visible uniquement sur mobile, EN DEHORS du container-fluid) ===== --}}
+<div class="mobile-topbar d-flex d-md-none align-items-center justify-content-between px-3 py-2">
+    <div class="d-flex align-items-center gap-2">
+        <img src="{{ asset('images/icon.png') }}" alt="GestComm" class="logo-img-icon" style="width:38px;height:38px;">
+        <span class="fw-bold text-white fs-5">GestComm</span>
+    </div>
+    <button class="btn btn-link text-white p-0 fs-2 lh-1" type="button"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#sidebarOffcanvas"
+        aria-controls="sidebarOffcanvas">
+        <i class="bi bi-list"></i>
+    </button>
+</div>
 
-                <!-- Navigation -->
-                <div class="px-3">
-                    <h6 class="sidebar-heading text-muted mb-3">
-                       <small data-translate="main_menu">MENU PRINCIPAL</small>
-                    </h6>
+{{-- ===== OFFCANVAS SIDEBAR MOBILE ===== --}}
+<div class="offcanvas offcanvas-start sidebar-offcanvas" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel" style="width:270px;">
+    <div class="sidebar-header position-relative">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <img src="{{ asset('images/icon.png') }}" alt="GestComm Logo" class="logo-img-icon">
+            </div>
+            <div class="logo-text">
+                <h4>GestComm</h4>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2"
+            data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0" style="overflow-y:auto;">
+        <div class="px-3 pt-3">
+            <h6 class="sidebar-heading text-muted mb-3">
+                <small data-translate="main_menu">MENU PRINCIPAL</small>
+            </h6>
+            <ul class="nav flex-column mb-4">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="dashboard" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-speedometer2"></i>
+                        <span data-translate="dashboard">Tableau de bord</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="commandes" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-cart"></i>
+                        <span data-translate="orders">Commandes</span>
+                        <span class="badge bg-danger badge-notification" id="commandes-badge-mobile">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="ventes" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-cash-coin"></i>
+                        <span data-translate="sales">Ventes</span>
+                        <span class="badge bg-warning badge-notification" id="ventes-badge-mobile">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="livraisons" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-truck"></i>
+                        <span data-translate="deliveries">Livraisons</span>
+                        <span class="badge bg-warning badge-notification" id="livraisons-badge-mobile">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="produits" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-box"></i>
+                        <span data-translate="products">Produits</span>
+                        <span class="badge bg-warning badge-notification" id="produits-badge-mobile">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="clients" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-people"></i>
+                        <span data-translate="clients">Clients</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="versements" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-wallet2"></i>
+                        <span data-translate="payments">Versements</span>
+                        <span class="badge bg-warning badge-notification" id="versements-badge-mobile">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="activites" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-activity"></i>
+                        <span data-translate="activities">Activités</span>
+                        <span class="badge bg-danger badge-notification" id="activites-badge-mobile"></span>
+                    </a>
+                </li>
+            </ul>
 
-                    <ul class="nav flex-column mb-5">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#" data-page="dashboard">
-                                <i class="bi bi-speedometer2"></i>
-                                 <span data-translate="dashboard">Tableau de bord</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="commandes">
-                                <i class="bi bi-cart"></i>
-                                <span data-translate="orders">Commandes</span>
-                                <span class="badge bg-danger badge-notification" id="commandes-badge">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="ventes">
-                                <i class="bi bi-cash-coin"></i>
-                                <span data-translate="sales">Ventes</span>
-                                 <span class="badge bg-warning badge-notification" id="ventes-badge">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="livraisons">
-                                <i class="bi bi-truck"></i>
-                                <span data-translate="deliveries">Livraisons</span>
-                                <span class="badge bg-warning badge-notification" id="livraisons-badge">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="produits">
-                                <i class="bi bi-box"></i>
-                                <span data-translate="products">Produits</span>
-                                 <span class="badge bg-warning badge-notification" id="produits-badge">0</span>
-                            </a>
-                        </li>
-                        {{-- <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="clients">
-                                <i class="bi bi-people"></i>
-                                <span data-translate="clients">Clients</span>
-                                <span class="badge bg-warning badge-notification" id="clients-badge">0</span>
-                            </a>
-                        </li> --}}
+            <h6 class="sidebar-heading text-muted mb-3">
+                <small data-translate="analytics">ANALYTIQUE</small>
+            </h6>
+            <ul class="nav flex-column mb-4">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="rapports" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-graph-up"></i>
+                        <span data-translate="reports">Rapports</span>
+                    </a>
+                </li>
+            </ul>
 
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="clients">
-                                <i class="bi bi-people"></i>
-                                <span data-translate="clients">Clients</span>
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="versements">
-                                <i class="bi bi-wallet2"></i>
-                                <span data-translate="payments">Versements</span>
-                                <span class="badge bg-warning badge-notification" id="versements-badge">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="activites">
-                                <i class="bi bi-activity"></i>
-                                <span data-translate="activities">Activités</span>
-                                <span class="badge bg-danger badge-notification" id="activites-badge"></span>
-                            </a>
-                        </li>
-                    </ul>
-
-                    <!-- Section Analytique -->
-                    <h6 class="sidebar-heading text-muted mb-3">
-                        <small data-translate="analytics">ANALYTIQUE</small>
-                    </h6>
-
-                    <ul class="nav flex-column mb-5">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="rapports">
-                                <i class="bi bi-graph-up"></i>
-                                <span data-translate="reports">Rapports</span>
-                            </a>
-                        </li>
-                    </ul>
-
-                    <!-- Section Administration -->
-                    <h6 class="sidebar-heading text-muted mb-3">
-                        <small data-translate="administration">ADMINISTRATION</small>
-                    </h6>
-
-                    <ul class="nav flex-column mb-5">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="users">
-                                <i class="bi bi-person-badge"></i>
-                                <span data-translate="users">Utilisateurs</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-page="settings">
-                                <i class="bi bi-gear"></i>
-                                <span data-translate="settings">Paramètres</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4" id="main-content">
-                <!-- Le contenu sera chargé dynamiquement ici -->
-            </main>
+            <h6 class="sidebar-heading text-muted mb-3">
+                <small data-translate="administration">ADMINISTRATION</small>
+            </h6>
+            <ul class="nav flex-column mb-4">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="users" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-person-badge"></i>
+                        <span data-translate="users">Utilisateurs</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-page="settings" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
+                        <i class="bi bi-gear"></i>
+                        <span data-translate="settings">Paramètres</span>
+                    </a>
+                </li>
+            </ul>
         </div>
     </div>
+</div>
 
+{{-- ===== LAYOUT PRINCIPAL ===== --}}
+<div class="container-fluid">
+    <div class="row">
+
+        {{-- Sidebar desktop (cachée sur mobile) --}}
+        <nav class="col-md-3 col-lg-2 d-none d-md-block sidebar p-0">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <img src="{{ asset('images/icon.png') }}" alt="GestComm Logo" class="logo-img-icon">
+                    </div>
+                    <div class="logo-text">
+                        <h4>GestComm</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-3">
+                <h6 class="sidebar-heading text-muted mb-3">
+                    <small data-translate="main_menu">MENU PRINCIPAL</small>
+                </h6>
+
+                <ul class="nav flex-column mb-5">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-page="dashboard">
+                            <i class="bi bi-speedometer2"></i>
+                            <span data-translate="dashboard">Tableau de bord</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="commandes">
+                            <i class="bi bi-cart"></i>
+                            <span data-translate="orders">Commandes</span>
+                            <span class="badge bg-danger badge-notification" id="commandes-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="ventes">
+                            <i class="bi bi-cash-coin"></i>
+                            <span data-translate="sales">Ventes</span>
+                            <span class="badge bg-warning badge-notification" id="ventes-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="livraisons">
+                            <i class="bi bi-truck"></i>
+                            <span data-translate="deliveries">Livraisons</span>
+                            <span class="badge bg-warning badge-notification" id="livraisons-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="produits">
+                            <i class="bi bi-box"></i>
+                            <span data-translate="products">Produits</span>
+                            <span class="badge bg-warning badge-notification" id="produits-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="clients">
+                            <i class="bi bi-people"></i>
+                            <span data-translate="clients">Clients</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="versements">
+                            <i class="bi bi-wallet2"></i>
+                            <span data-translate="payments">Versements</span>
+                            <span class="badge bg-warning badge-notification" id="versements-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="activites">
+                            <i class="bi bi-activity"></i>
+                            <span data-translate="activities">Activités</span>
+                            <span class="badge bg-danger badge-notification" id="activites-badge"></span>
+                        </a>
+                    </li>
+                </ul>
+
+                <h6 class="sidebar-heading text-muted mb-3">
+                    <small data-translate="analytics">ANALYTIQUE</small>
+                </h6>
+
+                <ul class="nav flex-column mb-5">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="rapports">
+                            <i class="bi bi-graph-up"></i>
+                            <span data-translate="reports">Rapports</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <h6 class="sidebar-heading text-muted mb-3">
+                    <small data-translate="administration">ADMINISTRATION</small>
+                </h6>
+
+                <ul class="nav flex-column mb-5">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="users">
+                            <i class="bi bi-person-badge"></i>
+                            <span data-translate="users">Utilisateurs</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="settings">
+                            <i class="bi bi-gear"></i>
+                            <span data-translate="settings">Paramètres</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        {{-- Contenu principal --}}
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4" id="main-content">
+            {{-- Le contenu sera chargé dynamiquement ici --}}
+        </main>
+
+    </div>
+</div>
     <!-- Modal Créer/Modifier Livraison -->
     <div class="modal fade" id="livraisonModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
