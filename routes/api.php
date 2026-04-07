@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;  
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\ChargementController;
 use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\ProduitController;
@@ -19,21 +19,18 @@ Route::get('/ping', function() {
         'status' => 'success',
         'message' => 'API is running',
         'timestamp' => now()->toDateTimeString(),
-        'ngrok_url' => request()->getHost()
     ]);
 });
 
 Route::post('/login', [AuthController::class, 'login']);
 
-// Test de connexion (public)
-// Route::get('/ping', function () {
-//     return response()->json([
-//         'status' => 'success',
-//         'message' => 'API is running',
-//         'timestamp' => now()->toDateTimeString(),
-//         'version' => '1.0.0'
-//     ]);
-// });
+Route::post('/login-simple', function() {
+    return response()->json([
+        'success' => true,
+        'message' => 'Route simple fonctionne',
+        'data' => request()->all()
+    ]);
+});
 
 // ======================
 // ROUTES PROTÉGÉES (nécessitent authentification)

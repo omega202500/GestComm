@@ -16,7 +16,7 @@ use App\Http\Controllers\ClientController;
 // ROUTES PUBLIQUES
 // ============================
 
-Route::get('/', function () {
+Route::post('/', function () {
     return redirect()->route('login');
 });
 

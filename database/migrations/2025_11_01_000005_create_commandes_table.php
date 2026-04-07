@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('commercial_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('zone_id')->constrained()->onDelete('cascade');
             //  $table->foreignId('client_nom')->constrained()->onDelete('cascade');
-            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
+            $table->foreignId('id')->constrained('clients')->onDelete('cascade');
             $table->string('client_tel');
             $table->enum('statut', ['en_attente', 'validee', 'livree', 'annulee'])->default('en_attente');
             $table->date('date_livraison');

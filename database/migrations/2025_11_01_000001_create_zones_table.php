@@ -9,7 +9,8 @@ return new class extends Migration
     public function up()
     {
         Schema::create('zones', function (Blueprint $table) {
-            $table->string('nom', 100)->primary(); // nom comme clé primaire
+            $table->id();
+            $table->string('nom', 100)->unique(); // nom comme clé unique
             $table->text('description')->nullable();
             $table->string('region', 50)->nullable();
             $table->timestamps();
