@@ -1,109 +1,135 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
-use App\Services\VenteService;
-use App\Http\Requests\VenteRequest;
+use App\Http\Controllers\Controller;
+use App\Models\Vente;
+use App\Models\Client;
+use App\Models\Activity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class VenteController extends Controller
 {
-    protected $venteService;
-
-    public function __construct(VenteService $venteService)
+    // Créer une vente (pour les chauffeurs)
+    public function store(Request $request)
     {
-        $this->venteService = $venteService;
+        $request->validate([
+            'client_nom' => 'required|string|max:150',
+            'client_tel' => 'required|string|max:20',
+            'produits' => 'required|array',
+            'produits.*.produit_id' => 'required|exists:produits,id',
+            'produits.*.quantite' => 'required|integer|min:1',
+            'produits.*.prix_unitaire' => 'required|numeric|min:0',
+            'montant_total' => 'required|numeric|min:0',
+            'total_quantite' => 'required|integer|min:1',
+            'mode_paiement' => 'required|in:espece,mobile_money,cheque,credit',
+            'montant_paye' => 'required|numeric|min:0',
+            'facture_ref' => 'nullable|string'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // Créer ou récupérer le client
+            $client = Client::firstOrCreate(
+                ['telephone' => $request->client_tel],
+                ['nom' => $request->client_nom]
+            );
+
+            // Créer la vente
+            $vente = Vente::create([
+                'commercial_id' => Auth::id(),
+                'client_id' => $client->id,
+                'date_vente' => now(),
+                'total_quantite' => $request->total_quantite,
+                'montant_total' => $request->montant_total,
+                'facture_ref' => $request->facture_ref ?? 'VENTE-' . time()
+            ]);
+
+            // Créer les lignes de vente
+            foreach ($request->produits as $produit) {
+                $vente->details()->create([
+                    'produit_id' => $produit['produit_id'],
+                    'quantite' => $produit['quantite'],
+                    'prix_unitaire' => $produit['prix_unitaire'],
+                    'total' => $produit['quantite'] * $produit['prix_unitaire']
+                ]);
+
+                // Mettre à jour le stock
+                $produitModel = \App\Models\Produits::find($produit['produit_id']);
+                $produitModel->decrement('stock', $produit['quantite']);
+            }
+
+            // Enregistrer l'activité
+            Activity::create([
+                'user_id' => Auth::id(),
+                'type' => 'vente',
+                'reference' => $vente->id,
+                'status' => 'en_attente',
+                'created_at' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vente enregistrée avec succès',
+                'vente' => $vente
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
+    // Liste des ventes (admin)
     public function index(Request $request)
     {
-        $ventes = $this->venteService->getVentesFiltrees($request->all());
-        $produits = \App\Models\Produit::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        
-        return view('ventes.index', compact('ventes', 'produits', 'commerciaux'));
-    }
+        $query = Vente::with(['commercial', 'client', 'produits']);
 
-    public function create()
-    {
-        $produits = \App\Models\Produit::where('stock', '>', 0)->get();
-        $clients = \App\Models\Client::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        
-        return view('ventes.create', compact('produits', 'clients', 'commerciaux'));
-    }
-
-    public function store(VenteRequest $request)
-    {
-        try {
-            $vente = $this->venteService->creerVente($request->validated());
-            return redirect()->route('ventes.show', $vente->id)
-                ->with('success', 'Vente enregistrée avec succès');
-        } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage())->withInput();
+        if ($request->date) {
+            $query->whereDate('date_vente', $request->date);
         }
+
+        $ventes = $query->orderBy('created_at', 'desc')->paginate(20);
+        return response()->json($ventes);
     }
 
-    public function show($id)
+    // Ventes du commercial connecté
+    public function myVentes()
     {
-        $vente = Vente::with(['produit', 'client', 'commercial'])->findOrFail($id);
-        return view('ventes.show', compact('vente'));
-    }
-
-    public function edit($id)
-    {
-        $vente = Vente::findOrFail($id);
-        $produits = \App\Models\Produit::all();
-        $clients = \App\Models\Client::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        
-        return view('ventes.edit', compact('vente', 'produits', 'clients', 'commerciaux'));
-    }
-
-    public function update(VenteRequest $request, $id)
-    {
-        try {
-            // Note: La mise à jour d'une vente est complexe car il faut gérer le stock
-            // Pour simplifier, on permet seulement de modifier certaines informations
-            $vente = Vente::findOrFail($id);
-            $vente->update($request->only(['facture_ref', 'notes']));
-            
-            return redirect()->route('ventes.show', $id)
-                ->with('success', 'Vente mise à jour avec succès');
-        } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
-        }
-    }
-
-    public function statistiques(Request $request)
-    {
-        $statistiques = $this->venteService->getStatistiquesVentes(
-            $request->date_debut,
-            $request->date_fin
-        );
-        
-        $ventesParProduit = $this->venteService->getVentesParProduit(
-            $request->date_debut,
-            $request->date_fin
-        );
-        
-        $ventesParCommercial = $this->venteService->getVentesParCommercial(
-            $request->date_debut,
-            $request->date_fin
-        );
-        
-        return view('ventes.statistiques', compact('statistiques', 'ventesParProduit', 'ventesParCommercial'));
-    }
-
-    public function rapportJournalier()
-    {
-        $today = now()->format('Y-m-d');
-        $ventes = Vente::whereDate('date_vente', $today)
-            ->with(['produit', 'client', 'commercial'])
+        $ventes = Vente::where('commercial_id', Auth::id())
+            ->with('client')
+            ->orderBy('created_at', 'desc')
             ->get();
-            
-        $total = $ventes->sum('montant_total');
-        
-        return view('ventes.rapport-journalier', compact('ventes', 'total'));
+
+        return response()->json($ventes);
+    }
+
+    // Statistiques du jour pour le chauffeur
+    public function statsJour()
+    {
+        $aujourdhui = now()->startOfDay();
+
+        $stats = [
+            'total_ventes' => Vente::where('commercial_id', Auth::id())
+                ->whereDate('date_vente', $aujourdhui)
+                ->sum('montant_total'),
+            'nb_ventes' => Vente::where('commercial_id', Auth::id())
+                ->whereDate('date_vente', $aujourdhui)
+                ->count(),
+            'nb_clients' => Vente::where('commercial_id', Auth::id())
+                ->whereDate('date_vente', $aujourdhui)
+                ->distinct('client_id')
+                ->count('client_id')
+        ];
+
+        return response()->json($stats);
     }
 }

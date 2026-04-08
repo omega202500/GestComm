@@ -1,98 +1,140 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
-use App\Services\CommandeService;
-use App\Http\Requests\CommandeRequest;
+use App\Http\Controllers\Controller;
+use App\Models\Commande;
+use App\Models\Client;
+use App\Models\Activity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CommandeController extends Controller
 {
-    protected $commandeService;
-
-    public function __construct(CommandeService $commandeService)
+    // Créer une commande (pour les commerciaux terrain)
+    public function store(Request $request)
     {
-        $this->commandeService = $commandeService;
+        $request->validate([
+            'client_nom' => 'required|string|max:150',
+            'client_tel' => 'required|string|max:20',
+            'produits' => 'required|array',
+            'produits.*.produit_id' => 'required|exists:produits,id',
+            'produits.*.quantite' => 'required|integer|min:1',
+            'produits.*.prix_unitaire' => 'required|numeric|min:0',
+            'montant_total' => 'required|numeric|min:0',
+            'total_quantite' => 'required|integer|min:1',
+            'date_livraison' => 'nullable|date',
+            'notes' => 'nullable|string'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // Créer ou récupérer le client
+            $client = Client::firstOrCreate(
+                ['telephone' => $request->client_tel],
+                ['nom' => $request->client_nom]
+            );
+
+            // Créer la commande
+            $commande = Commande::create([
+                'commercial_id' => Auth::id(),
+                'client_id' => $client->id,
+                'client_tel' => $request->client_tel,
+                'date_commande' => now(),
+                'date_livraison' => $request->date_livraison ?? now()->addDays(3),
+                'statut' => 'en_attente',
+                'total_quantite' => $request->total_quantite,
+                'montant_total' => $request->montant_total,
+                'notes' => $request->notes,
+                'zone_id' => Auth::user()->zone_id
+            ]);
+
+            // Créer les lignes de commande (si vous avez une table commande_items)
+            foreach ($request->produits as $produit) {
+                // À implémenter selon votre structure
+            }
+
+            // Enregistrer l'activité
+            Activity::create([
+                'user_id' => Auth::id(),
+                'type' => 'commande',
+                'reference' => $commande->id,
+                'status' => 'en_attente',
+                'created_at' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Commande créée avec succès',
+                'commande' => $commande
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
+    // Liste des commandes (pour admin)
     public function index(Request $request)
     {
-        $commandes = $this->commandeService->getCommandesFiltrees($request->all());
-        $zones = \App\Models\Zone::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        
-        return view('commandes.index', compact('commandes', 'zones', 'commerciaux'));
-    }
+        $query = Commande::with(['commercial', 'client', 'zone']);
 
-    public function create()
-    {
-        $clients = \App\Models\Client::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        $zones = \App\Models\Zone::all();
-        
-        return view('commandes.create', compact('clients', 'commerciaux', 'zones'));
-    }
-
-    public function store(CommandeRequest $request)
-    {
-        try {
-            $commande = $this->commandeService->creerCommande($request->validated());
-            return redirect()->route('commandes.show', $commande->id)
-                ->with('success', 'Commande créée avec succès');
-        } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+        // Filtres
+        if ($request->statut) {
+            $query->where('statut', $request->statut);
         }
+        if ($request->date_debut) {
+            $query->whereDate('date_commande', '>=', $request->date_debut);
+        }
+        if ($request->date_fin) {
+            $query->whereDate('date_commande', '<=', $request->date_fin);
+        }
+
+        $commandes = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return response()->json($commandes);
     }
 
+    // Détail d'une commande
     public function show($id)
     {
-        $commande = Commande::with(['client', 'commercial', 'zone', 'livraison'])->findOrFail($id);
-        return view('commandes.show', compact('commande'));
+        $commande = Commande::with(['commercial', 'client', 'zone', 'livraisons'])->findOrFail($id);
+        return response()->json($commande);
     }
 
-    public function edit($id)
-    {
-        $commande = Commande::findOrFail($id);
-        $clients = \App\Models\Client::all();
-        $commerciaux = \App\Models\User::where('role', 'terrain')->get();
-        $zones = \App\Models\Zone::all();
-        
-        return view('commandes.edit', compact('commande', 'clients', 'commerciaux', 'zones'));
-    }
-
-    public function update(CommandeRequest $request, $id)
-    {
-        $commande = Commande::findOrFail($id);
-        $commande->update($request->validated());
-        
-        return redirect()->route('commandes.show', $id)
-            ->with('success', 'Commande mise à jour avec succès');
-    }
-
+    // Mettre à jour le statut (admin)
     public function updateStatut(Request $request, $id)
     {
-        $request->validate(['statut' => 'required|string']);
-        
-        try {
-            $commande = $this->commandeService->mettreAJourStatut($id, $request->statut);
-            return response()->json(['success' => true, 'message' => 'Statut mis à jour']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
-        }
+        $request->validate([
+            'statut' => 'required|in:en_attente,en_cours,livree,annulee'
+        ]);
+
+        $commande = Commande::findOrFail($id);
+        $commande->update(['statut' => $request->statut]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Statut mis à jour',
+            'statut' => $commande->statut
+        ]);
     }
 
-    public function statistiques(Request $request)
+    // Commandes du commercial connecté
+    public function myCommandes()
     {
-        $statistiques = $this->commandeService->getStatistiquesCommandes(
-            $request->date_debut,
-            $request->date_fin
-        );
-        
-        $chiffreAffaires = $this->commandeService->getChiffreAffairesParZone(
-            $request->date_debut,
-            $request->date_fin
-        );
-        
-        return view('commandes.statistiques', compact('statistiques', 'chiffreAffaires'));
+        $commandes = Commande::where('commercial_id', Auth::id())
+            ->with('client')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($commandes);
     }
 }
