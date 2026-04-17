@@ -52,7 +52,7 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    'url' => env('APP_URL', 'https://gestcomm-w05j.onrender.com'),
 
     'asset_url' => env('ASSET_URL', null),
 
