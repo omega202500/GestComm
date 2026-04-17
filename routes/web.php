@@ -47,6 +47,8 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->middleware('auth');
 
+    
+
      // Routes pour les produits
     Route::resource('produits', ProduitController::class);
     Route::get('/produits/count', [ProduitController::class, 'count'])->name('produits.count');
@@ -63,6 +65,14 @@ Route::middleware(['auth'])->group(function () {
         $users = \App\Models\User::all();
         return view('users.index', compact('users'));
     })->name('users.index');
+
+    Route::get('/check-auth', function () {
+        return response()->json([
+            'authenticated' => auth()->check(),
+            'user' => auth()->user(),
+            'session_id' => session()->getId()
+        ]);
+    });
 
     // Routes pour les utilisateurs
     Route::resource('users', UserController::class);
