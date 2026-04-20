@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
 # Installer Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+CMD ["sh", "start.sh"]
+
 # Copier les fichiers (sans vendor)
 COPY . /var/www/html/
 
