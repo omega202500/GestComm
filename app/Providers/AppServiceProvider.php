@@ -18,11 +18,14 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        // Forcer HTTPS en production
-        if (env('APP_ENV') === 'production') {
-            URL::forceScheme('https');
-        }
+   public function boot()
+{
+    if (env('APP_ENV') === 'production') {
+        URL::forceScheme('https');
     }
+
+    // Force session configuration
+    config(['session.domain' => '.onrender.com']);
+    config(['session.secure' => true]);
+}
 }
