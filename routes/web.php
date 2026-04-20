@@ -20,6 +20,15 @@ Route::post('/', function () {
     return redirect()->route('login');
 });
 
+ Route::get('/session-test', function () {
+    return response()->json([
+        'session_id' => session()->getId(),
+        'session_data' => session()->all(),
+        'cookies' => request()->cookies->all()
+    ]);
+});
+
+
 // ============================
 // AUTHENTIFICATION
 // ============================
@@ -74,13 +83,6 @@ Route::middleware(['auth'])->group(function () {
         ]);
     });
 
-    Route::get('/session-test', function () {
-        return response()->json([
-            'session_id' => session()->getId(),
-            'session_data' => session()->all(),
-            'cookies' => request()->cookies->all()
-        ]);
-    });
 
     // Routes pour les utilisateurs
     Route::resource('users', UserController::class);
