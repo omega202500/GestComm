@@ -47,7 +47,7 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->middleware('auth');
 
-    
+
 
      // Routes pour les produits
     Route::resource('produits', ProduitController::class);
@@ -71,6 +71,14 @@ Route::middleware(['auth'])->group(function () {
             'authenticated' => auth()->check(),
             'user' => auth()->user(),
             'session_id' => session()->getId()
+        ]);
+    });
+
+    Route::get('/session-test', function () {
+        return response()->json([
+            'session_id' => session()->getId(),
+            'session_data' => session()->all(),
+            'cookies' => request()->cookies->all()
         ]);
     });
 
