@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\ProduitController;
 use App\Http\Controllers\Api\VenteController;
 use App\Http\Controllers\Api\VersementController;
 use App\Http\Controllers\Api\ChargementController;
-use App\Http\Controllers\CommandeController;
 use App\Http\Controllers\RetourController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ZoneController;
