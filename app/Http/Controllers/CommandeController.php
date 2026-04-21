@@ -51,11 +51,6 @@ class CommandeController extends Controller
                 'zone_id' => Auth::user()->zone_id
             ]);
 
-            // Créer les lignes de commande (si vous avez une table commande_items)
-            foreach ($request->produits as $produit) {
-                // À implémenter selon votre structure
-            }
-
             // Enregistrer l'activité
             Activity::create([
                 'user_id' => Auth::id(),
@@ -136,5 +131,45 @@ class CommandeController extends Controller
             ->get();
 
         return response()->json($commandes);
+    }
+
+    // ======================
+    // MÉTHODES SUPPLÉMENTAIRES POUR ADMIN
+    // ======================
+
+    // Récupérer les items d'une commande (si vous avez une table commande_items)
+    public function getItems($id)
+    {
+        $commande = Commande::findOrFail($id);
+
+        // Si vous avez une relation 'items' dans votre modèle Commande
+        // $items = $commande->items;
+
+        // Version temporaire
+        $items = [];
+
+        return response()->json([
+            'success' => true,
+            'data' => $items
+        ]);
+    }
+
+    // Statistiques du dashboard admin
+    public function getDashboardStats()
+    {
+        $stats = [
+            'total_commandes' => Commande::count(),
+            'commandes_en_attente' => Commande::where('statut', 'en_attente')->count(),
+            'commandes_en_cours' => Commande::where('statut', 'en_cours')->count(),
+            'commandes_livrees' => Commande::where('statut', 'livree')->count(),
+            'commandes_annulees' => Commande::where('statut', 'annulee')->count(),
+            'chiffre_affaires' => Commande::where('statut', 'livree')->sum('montant_total'),
+            'chiffre_affaires_total' => Commande::sum('montant_total')
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
+        ]);
     }
 }
