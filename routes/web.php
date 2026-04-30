@@ -58,7 +58,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
         ]);
     })->middleware('auth');
 
+       // Routes pour les utilisateurs
+    Route::resource('users', UserController::class);
 
+    // Routes pour les clients
+    Route::resource('clients', ClientController::class);
 
      // Routes pour les produits
     Route::resource('produits', ProduitController::class);
@@ -78,13 +82,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
             'session_id' => session()->getId()
         ]);
     });
-
-
-    // Routes pour les utilisateurs
-    Route::resource('users', UserController::class);
-
-    // Routes pour les clients
-    Route::resource('clients', ClientController::class);
 
     Route::get('/users/{id}/data', [UserController::class, 'getData'])->name('users.data');
 
