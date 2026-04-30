@@ -56,9 +56,12 @@ class ClientController extends Controller
 
     public function update(ClientRequest $request, $id)
     {
-        $client = $this->clientService->mettreAJourClient($id, $request->validated());
-        return redirect()->route('clients.index')
-            ->with('success', 'Client mis à jour avec succès');
+        $client = Client::findOrFail($id);
+        $client->update($request->validated());
+        // ou
+        $client->update($request->all());
+
+        return redirect()->route('clients.index')->with('success', 'Client mis à jour');
     }
 
     public function destroy($id)

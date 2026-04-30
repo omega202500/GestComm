@@ -52,21 +52,16 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="zone_id" class="form-label">
-                            <span data-translate="client_zone">Zone</span>
-                        </label>
-                        <select class="form-select @error('zone_id') is-invalid @enderror" id="zone_id" name="zone_id">
+                    <div class="mb-3">
+                        <label for="zone_id" class="form-label">Zone</label>
+                        <select class="form-select" id="zone_id" name="zone_id">
                             <option value="">Sélectionner une zone</option>
                             @foreach($zones as $zone)
-                                <option value="{{ $zone->id }}" {{ old('zone_id') == $zone->id ? 'selected' : '' }}>
+                                <option value="{{ $zone->id }}" {{ old('zone_id', $client->zone_id ?? '') == $zone->id ? 'selected' : '' }}>
                                     {{ $zone->nom }}
                                 </option>
                             @endforeach
                         </select>
-                        @error('zone_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
                     </div>
 
                     <div class="col-md-12 mb-3">
