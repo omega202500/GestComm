@@ -28,11 +28,10 @@ class Client extends Model
         'updated_at' => 'datetime'
     ];
 
-    public function zone()
+   public function zone()
     {
-        return $this->belongsTo(Zone::class);
+        return $this->belongsTo(Zone::class, 'zone_id', 'id'); // 'id' est la clé primaire de zones
     }
-
     public function commandes()
     {
         return $this->hasMany(Commande::class);
