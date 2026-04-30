@@ -191,26 +191,26 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     // CHANGEMENT DE LANGUE (AJAX)
     // ============================
 
-    Route::post('/change-language', function (Request $request) {
-        $locale = $request->input('lang');
-        $supportedLocales = ['fr', 'en', 'es'];
+   Route::post('/change-language', function (Request $request) {
+    $locale = $request->input('lang');
+    $supportedLocales = ['fr', 'en', 'es'];
 
-        if (in_array($locale, $supportedLocales)) {
-            session(['locale' => $locale]);
-            App::setLocale($locale);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Langue changée avec succès',
-                'locale' => $locale
-            ]);
-        }
+    if (in_array($locale, $supportedLocales)) {
+        session(['locale' => $locale]);
+        App::setLocale($locale);
 
         return response()->json([
-            'success' => false,
-            'message' => 'Langue non supportée'
-        ], 400);
-    })->name('change.language');
+            'success' => true,
+            'message' => 'Langue changée avec succès',
+            'locale' => $locale
+        ]);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Langue non supportée'
+    ], 400);
+})->name('change.language')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 
     // ROUTE DE COMPATIBILITÉ (pour l'ancien code JavaScript)
     Route::middleware(['auth'])->post('/password/change', [ProfileController::class, 'changePassword'])->name('password.change.ajax');
