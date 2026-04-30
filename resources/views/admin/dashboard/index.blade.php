@@ -1222,6 +1222,7 @@
                     <a class="nav-link" href="#" data-page="clients" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
                         <i class="bi bi-people"></i>
                         <span data-translate="clients">Clients</span>
+                         <span class="badge bg-warning badge-notification" id="clients-badge-mobile">0</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -1235,7 +1236,8 @@
                     <a class="nav-link" href="#" data-page="activites" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
                         <i class="bi bi-activity"></i>
                         <span data-translate="activities">Activités</span>
-                        <span class="badge bg-danger badge-notification" id="activites-badge-mobile"></span>
+                        <span class="badge bg-danger badge-notification" id="activites-badge-mobile">0</span>
+
                     </a>
                 </li>
             </ul>
