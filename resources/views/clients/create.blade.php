@@ -20,7 +20,7 @@
 
     <div class="card">
         <div class="card-body">
-           <form action="https://gestcomm-w05j.onrender.com/clients" method="POST">
+          <form action="{{ url('/clients') }}" method="POST">
                 @csrf
 
                 <div class="row">
