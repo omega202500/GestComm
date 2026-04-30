@@ -11,19 +11,11 @@ class UserController extends Controller
 {
     public function index()
     {
-        // Administrateurs : rôles 'admin' et 'super_admin'
-        $admins = User::whereIn('role', ['admin', 'super_admin'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Commerciaux : rôles 'commercial', 'terrain', 'chauffeur'
-        $commerciaux = User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        return view('users.index', compact('admins', 'commerciaux'));
+           $admins = User::whereIn('role', ['admin', 'super_admin'])->get();
+            $commerciaux = User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])->get();
+            return view('users.index', compact('admins', 'commerciaux'));
     }
-    
+
     public function edit($id)
     {
         $user = User::findOrFail($id);
@@ -32,7 +24,7 @@ class UserController extends Controller
             'user' => $user
         ]);
     }
-    
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -44,26 +36,26 @@ class UserController extends Controller
             'statut' => 'boolean',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
-        
+
         $validated['password'] = Hash::make($validated['password']);
-        
+
         if ($request->hasFile('photo')) {
             $path = $request->file('photo')->store('avatars', 'public');
             $validated['photo'] = $path;
         }
-        
+
         User::create($validated);
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur créé avec succès'
         ]);
     }
-    
+
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        
+
         $validated = $request->validate([
             'nom' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
@@ -73,13 +65,13 @@ class UserController extends Controller
             'statut' => 'boolean',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
-        
+
         if ($request->filled('password')) {
             $validated['password'] = Hash::make($request->password);
         } else {
             unset($validated['password']);
         }
-        
+
         if ($request->hasFile('photo')) {
             if ($user->photo && Storage::disk('public')->exists($user->photo)) {
                 Storage::disk('public')->delete($user->photo);
@@ -87,19 +79,19 @@ class UserController extends Controller
             $path = $request->file('photo')->store('avatars', 'public');
             $validated['photo'] = $path;
         }
-        
+
         $user->update($validated);
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur mis à jour avec succès'
         ]);
     }
-    
+
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-        
+
         // Empêcher la suppression du super admin (id = 1)
         if ($user->id === 1 || $user->role === 'super_admin') {
             return response()->json([
@@ -107,13 +99,13 @@ class UserController extends Controller
                 'message' => 'Impossible de supprimer le super administrateur'
             ], 403);
         }
-        
+
         if ($user->photo && Storage::disk('public')->exists($user->photo)) {
             Storage::disk('public')->delete($user->photo);
         }
-        
+
         $user->delete();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur supprimé avec succès'
