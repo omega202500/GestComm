@@ -41,7 +41,9 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ROUTES PROTÉGÉES (ADMIN)
 // ============================
 
-Route::middleware(['auth'])->group(function () {
+// Route::middleware(['auth'])->group(function () {
+    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+
 
     // -------- DASHBOARD --------
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
@@ -213,6 +215,6 @@ Route::middleware(['auth'])->group(function () {
     // ROUTE DE COMPATIBILITÉ (pour l'ancien code JavaScript)
     Route::middleware(['auth'])->post('/password/change', [ProfileController::class, 'changePassword'])->name('password.change.ajax');
 
-});
+//});
 
 

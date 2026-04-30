@@ -10,7 +10,9 @@ class LoginController extends Controller
 {
     public function showLoginForm()
     {
-        return view('auth.login');
+        // Rediriger directement vers le dashboard
+        return redirect('/admin/dashboard');
+        // return view('auth.login');
     }
 
     public function login(Request $request)
