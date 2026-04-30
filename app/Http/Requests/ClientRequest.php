@@ -13,14 +13,13 @@ class ClientRequest extends FormRequest
 
     public function rules()
     {
+        // Récupérer l'ID directement (c'est une chaîne ou null)
         $clientId = $this->route('client');
-        // Récupérer l'ID correctement
-        $id = $clientId ? $clientId->id : null;
 
         return [
             'nom' => 'required|string|max:255',
-            'telephone' => 'nullable|string|max:20|unique:clients,telephone,' . ($id ?? 'NULL'),
-            'email' => 'nullable|email|max:255|unique:clients,email,' . ($id ?? 'NULL'),
+            'telephone' => 'nullable|string|max:20|unique:clients,telephone,' . ($clientId ?? 'NULL'),
+            'email' => 'nullable|email|max:255|unique:clients,email,' . ($clientId ?? 'NULL'),
             'zone_id' => 'nullable|exists:zones,id',
             'adresse' => 'nullable|string|max:500',
             'solde' => 'nullable|numeric|min:0'
