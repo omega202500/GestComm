@@ -37,6 +37,7 @@
                             <th data-translate="client_id">ID</th>
                             <th data-translate="client_name">Nom</th>
                             <th data-translate="client_phone">Téléphone</th>
+                            <th data-translate="client_adresse">Adresse</th>
                             <th data-translate="client_zone">Zone</th>
                             <th data-translate="client_orders">Commandes</th>
                             <th data-translate="client_balance">Solde</th>
@@ -50,6 +51,7 @@
                             <td>{{ $client->id }}</td>
                             <td><strong>{{ $client->nom }}</strong></td>
                             <td>{{ $client->telephone ?? '-' }}</td>
+                            <td>{{ $client->adresse ?? '-' }}</td>
                             <td>{{ $client->zone->nom ?? '-' }}</td>
                             <td>
                                 <span class="badge bg-info">{{ $client->commandes_count ?? 0 }}</span>
