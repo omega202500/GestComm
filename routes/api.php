@@ -48,11 +48,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+     Route::get('/clients', [ClientController::class, 'index']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // CLIENTS
-    Route::get('/clients', [ClientController::class, 'index']);
+    // Route::get('/clients', [ClientController::class, 'index']);
     Route::post('/clients', [ClientController::class, 'store']);
     Route::get('/clients/{id}', [ClientController::class, 'show']);
     Route::put('/clients/{id}', [ClientController::class, 'update']);

@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Services\ClientService;
 use App\Http\Requests\ClientRequest;
 use Illuminate\Http\Request;
-use App\Models\Client;  
-use App\Models\Zone;     
+use App\Models\Client;
+use App\Models\Zone;
 
 class ClientController extends Controller
 {
@@ -20,17 +20,15 @@ class ClientController extends Controller
     public function index(Request $request)
     {
         $clients = $this->clientService->getClientsAvecCommandes();
-        
-        if ($request->ajax()) {
-            return response()->json($clients);
-        }
-        
+
+        // Retourner toujours la vue HTML pour l'interface admin
+        // Le JSON est géré par les routes API (api/clients)
         return view('clients.index', compact('clients'));
     }
 
     public function create()
     {
-        $zones = Zone::all();  // Utilisez Zone directement
+        $zones = Zone::all();
         return view('clients.create', compact('zones'));
     }
 
@@ -45,7 +43,7 @@ class ClientController extends Controller
     {
         $client = Client::with(['zone', 'commandes.commercial'])->findOrFail($id);
         $historique = $this->clientService->getHistoriqueCommandes($id);
-        
+
         return view('clients.show', compact('client', 'historique'));
     }
 
@@ -67,7 +65,7 @@ class ClientController extends Controller
     {
         $client = Client::findOrFail($id);
         $client->delete();
-        
+
         return redirect()->route('clients.index')
             ->with('success', 'Client supprimé avec succès');
     }
