@@ -359,16 +359,13 @@ function saveUser() {
     const id = document.getElementById('user_id').value;
     const form = document.getElementById('userForm');
     const formData = new FormData(form);
-      // Ajouter explicitement le token CSRF
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    formData.append('_token', csrfToken);
+
     const url = id ? `/users/${id}` : '/users';
 
     if (id) {
         formData.append('_method', 'PUT');
     }
 
-    // Désactiver le bouton pour éviter double soumission
     const saveBtn = document.querySelector('#userModal .btn-primary');
     const originalText = saveBtn ? saveBtn.innerHTML : 'Enregistrer';
     if (saveBtn) {
@@ -376,22 +373,17 @@ function saveUser() {
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> En cours...';
     }
 
-    console.log('Envoi de la requête à:', url);
-    console.log('Données:', Object.fromEntries(formData));
-
+    // Ne pas mettre l'en-tête X-CSRF-TOKEN pour les routes exclues
     fetch(url, {
         method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
             'Accept': 'application/json'
+            // Ne pas inclure X-CSRF-TOKEN car la route est exclue
         },
         body: formData
     })
     .then(async response => {
-        console.log('Statut réponse:', response.status);
         const data = await response.json();
-        console.log('Réponse:', data);
-
         if (!response.ok) {
             throw { status: response.status, data: data };
         }
@@ -412,19 +404,8 @@ function saveUser() {
         }
     })
     .catch(error => {
-        console.error('Erreur détaillée:', error);
-        let errorMessage = 'Erreur lors de l\'enregistrement';
-
-        if (error.data && error.data.message) {
-            errorMessage = error.data.message;
-        } else if (error.data && error.data.errors) {
-            const errors = Object.values(error.data.errors).flat();
-            errorMessage = errors.join(', ');
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
-
-        showNotification('Erreur', errorMessage, 'danger');
+        console.error('Erreur:', error);
+        showNotification('Erreur', error.data?.message || error.message || 'Erreur lors de l\'enregistrement', 'danger');
         if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalText;
