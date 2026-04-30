@@ -64,13 +64,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::resource('produits', ProduitController::class);
     Route::get('/produits/count', [ProduitController::class, 'count'])->name('produits.count');
 
-    // -------- PAGES TEMPORAIRES --------
-    Route::get('/commandes', fn() => "Page Commandes - En construction")->name('commandes.index');
-    Route::get('/clients', fn() => "Page Clients - En construction")->name('clients.index');
-    Route::get('/ventes', fn() => "Page Ventes - En construction")->name('ventes.index');
-    Route::get('/versements', fn() => "Page Versements - En construction")->name('versements.index');
-    Route::get('/rapports', fn() => "Page Rapports - En construction")->name('rapports.index');
-
     // -------- USERS --------
    Route::get('/users', function () {
     $admins = \App\Models\User::whereIn('role', ['admin', 'super_admin'])->get();
@@ -96,12 +89,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/users/{id}/data', [UserController::class, 'getData'])->name('users.data');
 
     // -------- FORMULAIRES CREATE --------
-    Route::get('/commandes/create', fn() => "Formulaire commande - En construction")->name('commandes.create');
-    Route::get('/ventes/create', fn() => "Formulaire vente - En construction")->name('ventes.create');
-    Route::get('/clients/create', fn() => "Formulaire client - En construction")->name('clients.create');
-    Route::get('/produits/create', fn() => "Formulaire produit - En construction")->name('produits.create');
-    Route::get('/livraisons/create', fn() => "Formulaire livraison - En construction")->name('livraisons.create');
-    Route::get('/users/create', fn() => "Formulaire utilisateur - En construction")->name('users.create');
+    // Route::get('/commandes/create', fn() => "Formulaire commande - En construction")->name('commandes.create');
+    // Route::get('/ventes/create', fn() => "Formulaire vente - En construction")->name('ventes.create');
+    // Route::get('/clients/create', fn() => "Formulaire client - En construction")->name('clients.create');
+    // Route::get('/produits/create', fn() => "Formulaire produit - En construction")->name('produits.create');
+    // Route::get('/livraisons/create', fn() => "Formulaire livraison - En construction")->name('livraisons.create');
+    // Route::get('/users/create', fn() => "Formulaire utilisateur - En construction")->name('users.create');
 
     // ============================
     // LIVRAISONS - Routes CRUD
