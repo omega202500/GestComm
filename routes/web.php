@@ -9,7 +9,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LivraisonController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProduitController;
-use App\Http\controllers\UserController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\ClientController;
 
 // ============================
