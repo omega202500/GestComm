@@ -20,7 +20,7 @@
 
     <div class="card">
         <div class="card-body">
-          <form action="{{ url('/clients') }}" method="POST">
+           <form action="{{ route('clients.store') }}" method="POST">
                 @csrf
 
                 <div class="row">

@@ -12,7 +12,12 @@ class VerifyCsrfToken extends Middleware
         'admin/dashboard',
         'api/*',
         'users',        // Ajouté
-        'users/*',      // Ajouté
+        'users/*',     // Ajouté
+        // temporaire pour tests API
+        'clients',
+        'clients/*',
+        'clients/*/edit',
         'change-language'
+
     ];
 }
