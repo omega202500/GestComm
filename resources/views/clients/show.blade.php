@@ -45,10 +45,6 @@
                             <td>{{ $client->telephone ?? '-' }}</td>
                         </tr>
                         <tr>
-                            <th>Email :</th>
-                            <td>{{ $client->email ?? '-' }}</td>
-                        </tr>
-                        <tr>
                             <th>Zone :</th>
                             <td>{{ $client->zone->nom ?? '-' }}</td>
                         </tr>
