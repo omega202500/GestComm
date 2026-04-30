@@ -226,28 +226,28 @@
                     @csrf
                     <input type="hidden" id="user_id" name="id">
                     <input type="hidden" id="user_role" name="role">
-                    
+
                     <div class="mb-3">
                         <label for="nom" class="form-label">Nom complet <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="nom" name="nom" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
-                    
+
                     <div class="mb-3" id="password_field">
                         <label for="password" class="form-label">Mot de passe <span class="text-danger">*</span></label>
                         <input type="password" class="form-control" id="password" name="password">
                         <small class="text-muted">Laissez vide pour conserver le mot de passe actuel (en modification)</small>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="telephone" class="form-label">Téléphone</label>
                         <input type="tel" class="form-control" id="telephone" name="telephone">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="role_select" class="form-label">Rôle <span class="text-danger">*</span></label>
                         <select class="form-select" id="role_select" name="role" required>
@@ -257,7 +257,7 @@
                             <option value="chauffeur">Chauffeur</option>
                         </select>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="photo" class="form-label">Photo de profil</label>
                         <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
@@ -265,7 +265,7 @@
                             <img id="preview_img" src="#" style="max-width: 100px; border-radius: 50%;">
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="statut" class="form-label">Statut</label>
                         <select class="form-select" id="statut" name="statut">
@@ -295,14 +295,14 @@ function openUserModal(role) {
     document.getElementById('userModalTitle').innerHTML = role === 'admin' ? 'Ajouter un administrateur' : 'Ajouter un commercial';
     document.getElementById('password_field').style.display = 'block';
     document.getElementById('photo_preview').style.display = 'none';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('userModal'));
     modal.show();
 }
 
 function editUser(id) {
     console.log('Editing user:', id);
-    
+
     // Utiliser une route API dédiée au lieu de la route d'édition
     fetch(`/users/${id}/data`, {
         headers: {
@@ -321,7 +321,7 @@ function editUser(id) {
         console.log('User data:', data);
         if (data.success) {
             const user = data.user;
-            
+
             document.getElementById('user_id').value = user.id;
             document.getElementById('nom').value = user.nom;
             document.getElementById('email').value = user.email;
@@ -330,20 +330,20 @@ function editUser(id) {
             document.getElementById('user_role').value = user.role;
             document.getElementById('role_select').value = user.role;
             document.getElementById('password_field').style.display = 'none';
-            
+
             if (user.role === 'admin' || user.role === 'super_admin') {
                 document.getElementById('userModalTitle').innerHTML = 'Modifier un administrateur';
             } else {
                 document.getElementById('userModalTitle').innerHTML = 'Modifier un commercial';
             }
-            
+
             if (user.photo) {
                 document.getElementById('preview_img').src = '/storage/' + user.photo;
                 document.getElementById('photo_preview').style.display = 'block';
             } else {
                 document.getElementById('photo_preview').style.display = 'none';
             }
-            
+
             const modal = new bootstrap.Modal(document.getElementById('userModal'));
             modal.show();
         } else {
@@ -359,13 +359,15 @@ function saveUser() {
     const id = document.getElementById('user_id').value;
     const form = document.getElementById('userForm');
     const formData = new FormData(form);
-    
+      // Ajouter explicitement le token CSRF
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    formData.append('_token', csrfToken);
     const url = id ? `/users/${id}` : '/users';
-    
+
     if (id) {
         formData.append('_method', 'PUT');
     }
-    
+
     // Désactiver le bouton pour éviter double soumission
     const saveBtn = document.querySelector('#userModal .btn-primary');
     const originalText = saveBtn ? saveBtn.innerHTML : 'Enregistrer';
@@ -373,10 +375,10 @@ function saveUser() {
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> En cours...';
     }
-    
+
     console.log('Envoi de la requête à:', url);
     console.log('Données:', Object.fromEntries(formData));
-    
+
     fetch(url, {
         method: 'POST',
         headers: {
@@ -389,7 +391,7 @@ function saveUser() {
         console.log('Statut réponse:', response.status);
         const data = await response.json();
         console.log('Réponse:', data);
-        
+
         if (!response.ok) {
             throw { status: response.status, data: data };
         }
@@ -412,7 +414,7 @@ function saveUser() {
     .catch(error => {
         console.error('Erreur détaillée:', error);
         let errorMessage = 'Erreur lors de l\'enregistrement';
-        
+
         if (error.data && error.data.message) {
             errorMessage = error.data.message;
         } else if (error.data && error.data.errors) {
@@ -421,7 +423,7 @@ function saveUser() {
         } else if (error.message) {
             errorMessage = error.message;
         }
-        
+
         showNotification('Erreur', errorMessage, 'danger');
         if (saveBtn) {
             saveBtn.disabled = false;
