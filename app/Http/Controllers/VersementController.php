@@ -82,10 +82,9 @@ class VersementController extends Controller
     {
         //
     }
-    public function countPending() {
-    return response()->json([
-        'success' => true,
-        'count'   => Versement::where('statut', 'en_attente')->count()
-    ]);
+ public function countPending()
+{
+    $count = \App\Models\Versement::where('valide', false)->count();
+    return response()->json(['count' => $count]);
 }
 }

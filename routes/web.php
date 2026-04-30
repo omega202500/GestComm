@@ -10,10 +10,10 @@ use App\Http\Controllers\LivraisonController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VersementController;
+use App\Http\Controllers\VenteController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CommandeController;
-use App\Http\Controllers\VenteController;
-use App\Http\Controllers\VersementController;
 
 
 // ============================
@@ -46,9 +46,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ============================
 
 // Route::middleware(['auth'])->group(function () {
-    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
-
-
     // -------- DASHBOARD --------
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/stats', [DashboardController::class, 'stats'])->name('admin.dashboard.stats');
@@ -71,6 +68,13 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
      // Routes pour les produits
     Route::resource('produits', ProduitController::class);
     Route::get('/produits/count', [ProduitController::class, 'count'])->name('produits.count');
+
+   // Compteurs pour les badges
+    Route::get('/commandes/count', [CommandeController::class, 'count']);
+    Route::get('/ventes/count',    [VenteController::class,    'count']);
+    Route::get('/clients/count',   [ClientController::class,   'count']);
+    Route::get('/versements/count-pending', [VersementController::class, 'countPending']);
+
 
     // -------- USERS --------
    Route::get('/users', function () {
@@ -172,11 +176,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
         Route::post('/activities/{activity}/validate', [ActivityController::class, 'validateActivity'])->name('activities.validate');
         Route::post('/activities/{activity}/reject', [ActivityController::class, 'rejectActivity'])->name('activities.reject');
     });
-    // Compteurs pour les badges
-    Route::get('/commandes/count', [CommandeController::class, 'count']);
-    Route::get('/ventes/count',    [VenteController::class,    'count']);
-    Route::get('/clients/count',   [ClientController::class,   'count']);
-    Route::get('/versements/count-pending', [VersementController::class, 'countPending']);
 
     // ============================
     // PROFIL UTILISATEUR
