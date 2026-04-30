@@ -88,6 +88,13 @@ class VenteController extends Controller
         }
     }
 
+    public function count() {
+        return response()->json([
+            'success' => true,
+            'count'   => Vente::whereDate('created_at', today())->count()
+        ]);
+    }
+
     // Liste des ventes (admin)
     public function index(Request $request)
     {

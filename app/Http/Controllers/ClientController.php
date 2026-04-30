@@ -78,4 +78,11 @@ class ClientController extends Controller
         $statistiques = $this->clientService->getStatistiquesClientsParZone();
         return view('clients.statistiques', compact('statistiques'));
     }
+    public function count() {
+    return response()->json([
+        'success' => true,
+        'count'   => Client::whereDate('created_at', today())->count()
+    ]);
+}
+
 }

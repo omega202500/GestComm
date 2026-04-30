@@ -11,6 +11,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\CommandeController;
+use App\Http\Controllers\VenteController;
+use App\Http\Controllers\VersementController;
+
 
 // ============================
 // ROUTES PUBLIQUES
@@ -168,6 +172,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
         Route::post('/activities/{activity}/validate', [ActivityController::class, 'validateActivity'])->name('activities.validate');
         Route::post('/activities/{activity}/reject', [ActivityController::class, 'rejectActivity'])->name('activities.reject');
     });
+    // Compteurs pour les badges
+    Route::get('/commandes/count', [CommandeController::class, 'count']);
+    Route::get('/ventes/count',    [VenteController::class,    'count']);
+    Route::get('/clients/count',   [ClientController::class,   'count']);
+    Route::get('/versements/count-pending', [VersementController::class, 'countPending']);
 
     // ============================
     // PROFIL UTILISATEUR

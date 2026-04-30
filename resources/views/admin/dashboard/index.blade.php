@@ -1332,13 +1332,14 @@
                             <span class="badge bg-warning badge-notification" id="produits-badge">0</span>
                         </a>
                     </li>
-                    <li class="nav-item">
+                   <li class="nav-item">
                         <a class="nav-link" href="#" data-page="clients">
                             <i class="bi bi-people"></i>
                             <span data-translate="clients">Clients</span>
+                            <span class="badge bg-warning badge-notification" id="clients-badge">0</span>
                         </a>
                     </li>
-                    <li class="nav-item">
+                                        <li class="nav-item">
                         <a class="nav-link" href="#" data-page="versements">
                             <i class="bi bi-wallet2"></i>
                             <span data-translate="payments">Versements</span>
@@ -1594,54 +1595,56 @@
         });
 
 function updateBadges() {
-    // Commandes en attente
-    const enAttente = stats.commandes?.en_attente || 0;
-    const commandesBadge = document.getElementById('commandes-badge');
-    if (commandesBadge) {
-        commandesBadge.textContent = enAttente;
-        commandesBadge.style.display = enAttente > 0 ? 'inline' : 'none';
+    function setBadge(desktopId, mobileId, count) {
+        [desktopId, mobileId].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = count;
+            el.style.display = count > 0 ? 'inline' : 'none';
+        });
     }
 
-    // Versements en attente
-    const versementsEnAttente = stats.versements?.en_attente || 0;
-    const versementsBadge = document.getElementById('versements-badge');
-    if (versementsBadge) {
-        versementsBadge.textContent = versementsEnAttente;
-        versementsBadge.style.display = versementsEnAttente > 0 ? 'inline' : 'none';
-    }
-
-    // Livraisons en cours
-    const livraisonsEnCours = livraisonsData.filter(l => l.statut === 'en_cours').length;
-    const livraisonsBadge = document.getElementById('livraisons-badge');
-    if (livraisonsBadge) {
-        livraisonsBadge.textContent = livraisonsEnCours;
-        livraisonsBadge.style.display = livraisonsEnCours > 0 ? 'inline' : 'none';
-    }
-
-    // Activités en attente
-    const activitesBadge = document.getElementById('activites-badge');
-    if (activitesBadge) {
-        activitesBadge.textContent = newCount;
-        activitesBadge.style.display = newCount > 0 ? 'inline' : 'none';
-    }
-
-    // PRODUITS - Appel API pour récupérer le nombre
-    fetch('/produits/count', {
-        headers: {
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const produitsBadge = document.getElementById('produits-badge');
-            if (produitsBadge) {
-                produitsBadge.textContent = data.count;
-                produitsBadge.style.display = data.count > 0 ? 'inline' : 'none';
+    function fetchCount(url, onSuccess) {
+        fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
-        }
-    })
-    .catch(error => console.error('Erreur chargement compteur produits:', error));
+        })
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => { if (data.success) onSuccess(data.count); })
+        .catch(err => console.error('Badge fetch error', url, err));
+    }
+
+    // ── 1. Commandes en attente (données déjà dans stats) ────
+    const commandesEnAttente = stats.commandes?.en_attente || 0;
+    setBadge('commandes-badge', 'commandes-badge-mobile', commandesEnAttente);
+
+    // ── 2. Ventes du jour ────────────────────────────────────
+    fetchCount('/ventes/count', count =>
+        setBadge('ventes-badge', 'ventes-badge-mobile', count)
+    );
+
+    // ── 3. Livraisons en cours ───────────────────────────────
+    const livraisonsEnCours = livraisonsData.filter(l => l.statut === 'en_cours').length;
+    setBadge('livraisons-badge', 'livraisons-badge-mobile', livraisonsEnCours);
+
+    // ── 4. Produits (route déjà existante) ───────────────────
+    fetchCount('/produits/count', count => {
+        setBadge('produits-badge', 'produits-badge-mobile', count);
+    });
+
+    // ── 5. Clients nouveaux aujourd'hui ──────────────────────
+    fetchCount('/clients/count', count =>
+        setBadge('clients-badge', 'clients-badge-mobile', count)
+    );
+
+    // ── 6. Versements en attente ─────────────────────────────
+    const versementsEnAttente = stats.versements?.en_attente || 0;
+    setBadge('versements-badge', 'versements-badge-mobile', versementsEnAttente);
+
+    // ── 7. Activités nouvelles ───────────────────────────────
+    setBadge('activites-badge', 'activites-badge-mobile', newCount);
 }
 function setupEventListeners() {
     // Navigation

@@ -76,6 +76,11 @@ class CommandeController extends Controller
             ], 500);
         }
     }
+    public function count()
+    {
+        $count = Commande::count();
+        return response()->json(['count' => $count]);
+    }
 
     // Liste des commandes (pour admin)
     public function index(Request $request)
