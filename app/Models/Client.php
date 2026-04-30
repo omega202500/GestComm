@@ -16,18 +16,16 @@ class Client extends Model
         'telephone',
         'zone_id',
         'adresse',
-        'email',
         'solde'
+
     ];
 
-    // Si votre table utilise 'UPDATE_at' au lieu de 'updated_at'
-    const UPDATED_AT = 'UPDATE_at';
-    const CREATED_AT = 'created_at';
+    // Pas besoin de redéfinir UPDATED_AT et CREATED_AT
 
     protected $casts = [
         'solde' => 'decimal:2',
         'created_at' => 'datetime',
-        'UPDATE_at' => 'datetime'
+        'updated_at' => 'datetime'
     ];
 
     public function zone()
