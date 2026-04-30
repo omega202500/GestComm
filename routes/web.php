@@ -72,10 +72,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/rapports', fn() => "Page Rapports - En construction")->name('rapports.index');
 
     // -------- USERS --------
-    Route::get('/users', function () {
-        $users = \App\Models\User::all();
-        return view('users.index', compact('users'));
-    })->name('users.index');
+   Route::get('/users', function () {
+    $admins = \App\Models\User::whereIn('role', ['admin', 'super_admin'])->get();
+    $commerciaux = \App\Models\User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])->get();
+    return view('users.index', compact('admins', 'commerciaux'));
+})->name('users.index');
 
     Route::get('/check-auth', function () {
         return response()->json([
