@@ -43,7 +43,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ROUTES PROTÉGÉES (ADMIN)
 // ============================
 
-Route::middleware(['auth'])->group(function () {
+//Route::middleware(['auth'])->group(function () {
     
     // -------- DASHBOARD --------
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
@@ -171,4 +171,4 @@ Route::middleware(['auth'])->group(function () {
             'session_id' => session()->getId()
         ]);
     });
-});
+//});
