@@ -15,7 +15,7 @@ class CommandeController extends Controller
     /**
      * Créer une commande (pour les commerciaux terrain)
      */
- public function store(Request $request)
+public function store(Request $request)
 {
     try {
         $request->validate([
@@ -28,9 +28,8 @@ class CommandeController extends Controller
 
         DB::beginTransaction();
 
-        // Rechercher ou créer le client SANS spécifier l'ID
+        // Rechercher ou créer le client
         $client = Client::where('telephone', $request->client_tel)->first();
-        
         if (!$client) {
             $client = Client::create([
                 'nom' => $request->client_nom,
@@ -38,7 +37,7 @@ class CommandeController extends Controller
             ]);
         }
 
-        // Créer la commande
+        // Créer la commande - Laissez PostgreSQL générer l'ID automatiquement
         $commande = Commande::create([
             'commercial_id' => Auth::id(),
             'client_id' => $client->id,
