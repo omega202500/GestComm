@@ -38,8 +38,8 @@ Route::get('/test-db-connection', function() {
         return response()->json(['success' => false, 'error' => $e->getMessage()]);
     }
 });
-   // CLIENTS
-    // Route::get('/clients', [ClientController::class, 'index']);
+     // CLIENTS
+     Route::get('/clients', [ClientController::class, 'index']);
     Route::post('/clients', [ClientController::class, 'store']);
     Route::get('/clients/{id}', [ClientController::class, 'show']);
     Route::put('/clients/{id}', [ClientController::class, 'update']);
@@ -50,12 +50,12 @@ Route::get('/test-db-connection', function() {
     Route::get('/produits', [ProduitController::class, 'index']);
     Route::get('/produits/{id}', [ProduitController::class, 'show']);
     Route::get('/produits/stock/alerte', [ProduitController::class, 'stockAlerte']);
- // Commandes
+    // Commandes
     Route::post('/commandes', [CommandeController::class, 'store']);
     Route::get('/commandes/mine', [CommandeController::class, 'myCommandes']);
     Route::get('/commandes/{id}', [CommandeController::class, 'show']);
     Route::patch('/commandes/{id}/statut', [CommandeController::class, 'updateStatut']);
-  // ======================
+   // ======================
    // ROUTES PROTÉGÉES
    // ======================
    Route::middleware('auth:sanctum')->group(function () {
