@@ -38,21 +38,7 @@ Route::get('/test-db-connection', function() {
         return response()->json(['success' => false, 'error' => $e->getMessage()]);
     }
 });
-
-// ======================
-// ROUTES PROTÉGÉES
-// ======================
-Route::middleware('auth:sanctum')->group(function () {
-
-    // UTILISATEUR COURANT
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
-     Route::get('/clients', [ClientController::class, 'index']);
-
-    Route::post('/logout', [AuthController::class, 'logout']);
-
-    // CLIENTS
+   // CLIENTS
     // Route::get('/clients', [ClientController::class, 'index']);
     Route::post('/clients', [ClientController::class, 'store']);
     Route::get('/clients/{id}', [ClientController::class, 'show']);
@@ -64,6 +50,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/produits', [ProduitController::class, 'index']);
     Route::get('/produits/{id}', [ProduitController::class, 'show']);
     Route::get('/produits/stock/alerte', [ProduitController::class, 'stockAlerte']);
+ // Commandes
+    Route::post('/commandes', [CommandeController::class, 'store']);
+    Route::get('/commandes/mine', [CommandeController::class, 'myCommandes']);
+    Route::get('/commandes/{id}', [CommandeController::class, 'show']);
+    Route::patch('/commandes/{id}/statut', [CommandeController::class, 'updateStatut']);
+  // ======================
+   // ROUTES PROTÉGÉES
+   // ======================
+   Route::middleware('auth:sanctum')->group(function () {
+
+    // UTILISATEUR COURANT
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+     Route::get('/clients', [ClientController::class, 'index']);
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+ 
 
     // VENTES
     Route::post('/ventes', [VenteController::class, 'store']);
