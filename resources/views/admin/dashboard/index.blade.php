@@ -2107,149 +2107,286 @@ function loadDashboard() {
     const dashboardPage = document.getElementById('main-content');
     if (!dashboardPage) return;
 
-    const content = `
-    <div class="main-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-speedometer2 text-primary me-2"></i>
-                    <span data-translate="dashboard_title">Tableau de bord Administrateur</span>
-                </h1>
-                <p class="text-muted mb-0" data-translate="dashboard_subtitle">Vue d\'ensemble de votre activité commerciale</p>
+    // Afficher un loader
+    dashboardPage.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
             </div>
-            <div class="dropdown">
-                <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">A</div>
-                    <span id="user-name" class="fw-bold">Admin</span>
-                    <i class="bi bi-person-circle fs-4"></i>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end mt-2">
-                    <li class="px-3 py-2 bg-light">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-size: 18px;">A</div>
-                            <div>
-                                <h6 class="mb-0 fw-semibold">Admin</h6>
-                                <small class="text-muted">admin@gestcomm.com</small>
-                            </div>
-                        </div>
-                    </li>
-                    <li><hr class="dropdown-divider m-0"></li>
-                    <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i> Mon Profil</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal()"><i class="bi bi-lock me-2"></i> Changer Mot de Passe</a></li>
-                    <li><hr class="dropdown-divider m-0"></li>
-                    <li>
-                        <form method="POST" action="/logout" id="logout-form" style="display: none;">
-                            <input type="hidden" name="_token" value="' + document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content') + '">
-                        </form>
-                        <a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); document.getElementById(\'logout-form\').submit();"><i class="bi bi-box-arrow-right me-2"></i> Déconnexion</a>
-                    </li>
-                </ul>
-            </div>
+            <p class="mt-3">Chargement du tableau de bord...</p>
         </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-primary h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
-                            <p class="text-muted mb-1">CHIFFRE D\'AFFAIRES</p>
-                            <h2 class="stat-number">${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')}<small class="fs-6 text-muted">FCFA</small></h2>
-                        </div>
-                        <div class="text-end"><small class="text-muted"><i class="bi bi-calendar-event"></i> ${getPeriodeLabel(periode)}</small></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-success h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon success"><i class="bi bi-cart-check"></i></div>
-                            <p class="text-muted mb-1">COMMANDES</p>
-                            <div class="d-flex align-items-center">
-                                <h2 class="stat-number me-3">${stats.commandes?.total || 0}</h2>
-                                <div><span class="badge bg-success">${stats.commandes?.livrees || 0} livrées</span>${stats.commandes?.en_attente > 0 ? `<span class="badge bg-warning d-block mt-1">${stats.commandes?.en_attente || 0} en attente</span>` : ''}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-info h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
-                            <p class="text-muted mb-1">VENTES</p>
-                            <h2 class="stat-number">${stats.total_ventes || 0}</h2>
-                            <div class="d-flex justify-content-between"><small class="text-muted">Transactions</small><small class="text-muted">${stats.total_quantite || 0} unités</small></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-warning h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
-                            <p class="text-muted mb-1">VERSEMENTS</p>
-                            <h2 class="stat-number">${((stats.versements?.valides || 0) + (stats.versements?.en_attente || 0)).toLocaleString('fr-FR')}</h2>
-                            <div class="d-flex justify-content-between"><span class="badge bg-success">${(stats.versements?.valides || 0).toLocaleString('fr-FR')} validés</span>${stats.versements?.en_attente > 0 ? `<span class="badge bg-warning">${(stats.versements?.en_attente || 0).toLocaleString('fr-FR')} en attente</span>` : ''}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="performance-card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Performance des commerciaux</h5>
-                        <a href="#" class="btn btn-sm btn-light" onclick="navigateTo(\'rapports\')">Voir plus <i class="bi bi-arrow-right"></i></a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    ${stats.performance_commerciaux && stats.performance_commerciaux.length > 0 ? `
-                    <div class="table-responsive">
-                        <table class="table table-custom">
-                            <thead><tr><th>Commercial</th><th>Ventes</th><th>Quantité</th><th>Commandes</th><th>Performance</th></tr></thead>
-                            <tbody>
-                                ${stats.performance_commerciaux.map(commercial => {
-                                    const totalVentes = commercial.total_ventes || 0;
-                                    const totalCommandes = commercial.total_commandes || 0;
-                                    const objectif = commercial.objectif || (commercial.total_commandes * 1.2 || 100000);
-                                    const performance = Math.min(100, (totalVentes / Math.max(1, objectif)) * 100);
-                                    return `<tr>
-                                        <td><div class="d-flex align-items-center"><div class="commercial-avatar me-3">${commercial.nom ? commercial.nom.charAt(0).toUpperCase() : 'C'}</div><div><strong>${commercial.nom || 'Non défini'}</strong><div class="text-muted small">${commercial.role || 'Commercial'}</div></div></div></td>
-                                        <td><strong class="text-primary">${totalVentes.toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
-                                        <td><span class="performance-badge">${commercial.total_quantite_vendue || 0}</span></td>
-                                        <td><strong class="text-success">${totalCommandes.toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
-                                        <td><div class="d-flex align-items-center"><div class="progress-custom flex-grow-1 me-2"><div class="progress-bar" style="width: ${performance}%"></div></div><span class="fw-bold">${performance.toFixed(1)}%</span></div></td>
-                                    </tr>`;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    ` : `
-                    <div class="text-center py-5"><i class="bi bi-bar-chart text-muted fs-1"></i><p class="text-muted mt-3">Aucune donnée de performance disponible</p><p class="text-muted small">Les données apparaîtront lorsque les commerciaux auront effectué des ventes</p></div>
-                    `}
-                </div>
-            </div>
-        </div>
-    </div>
     `;
 
-    dashboardPage.innerHTML = content;
+    // Charger les statistiques depuis l'API
+    Promise.all([
+        fetch('/api/dashboard/stats', {
+            headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        }).then(r => r.json()),
+        fetch('/api/commandes', {
+            headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        }).then(r => r.json())
+    ])
+    .then(([statsData, commandesData]) => {
+        const stats = statsData.data || statsData;
+        const commandes = commandesData.data || commandesData;
+        
+        // Calculer les stats des commandes
+        const totalCommandes = commandes.length || 0;
+        const commandesLivrees = commandes.filter(c => c.statut === 'livree').length;
+        const commandesEnAttente = commandes.filter(c => c.statut === 'en_attente').length;
+        
+        const content = `
+        <div class="main-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 fw-bold mb-1">
+                        <i class="bi bi-speedometer2 text-primary me-2"></i>
+                        <span data-translate="dashboard_title">Tableau de bord Administrateur</span>
+                    </h1>
+                    <p class="text-muted mb-0" data-translate="dashboard_subtitle">Vue d\'ensemble de votre activité commerciale</p>
+                </div>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">A</div>
+                        <span id="user-name" class="fw-bold">Admin</span>
+                        <i class="bi bi-person-circle fs-4"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end mt-2">
+                        <li class="px-3 py-2 bg-light">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-size: 18px;">A</div>
+                                <div>
+                                    <h6 class="mb-0 fw-semibold">Admin</h6>
+                                    <small class="text-muted">admin@gestcomm.com</small>
+                                </div>
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider m-0"></li>
+                        <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i> Mon Profil</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal()"><i class="bi bi-lock me-2"></i> Changer Mot de Passe</a></li>
+                        <li><hr class="dropdown-divider m-0"></li>
+                        <li>
+                            <form method="POST" action="/logout" id="logout-form" style="display: none;">
+                                <input type="hidden" name="_token" value="' + document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content') + '">
+                            </form>
+                            <a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); document.getElementById(\'logout-form\').submit();"><i class="bi bi-box-arrow-right me-2"></i> Déconnexion</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-4">
+            <!-- Chiffre d'affaires -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card border-primary h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
+                                <p class="text-muted mb-1">CHIFFRE D\'AFFAIRES</p>
+                                <h2 class="stat-number">${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')}<small class="fs-6 text-muted">FCFA</small></h2>
+                            </div>
+                            <div class="text-end"><small class="text-muted"><i class="bi bi-calendar-event"></i> ${getPeriodeLabel(periode)}</small></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Commandes -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card border-success h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-icon success"><i class="bi bi-cart-check"></i></div>
+                                <p class="text-muted mb-1">COMMANDES</p>
+                                <div class="d-flex align-items-center">
+                                    <h2 class="stat-number me-3">${totalCommandes}</h2>
+                                    <div>
+                                        <span class="badge bg-success">${commandesLivrees} livrées</span>
+                                        ${commandesEnAttente > 0 ? `<span class="badge bg-warning d-block mt-1">${commandesEnAttente} en attente</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ventes (à implémenter) -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card border-info h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
+                                <p class="text-muted mb-1">VENTES</p>
+                                <h2 class="stat-number" id="ventes-total">0</h2>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Transactions</small>
+                                    <small class="text-muted" id="ventes-quantite">0 unités</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Versements -->
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card border-warning h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
+                                <p class="text-muted mb-1">VERSEMENTS</p>
+                                <h2 class="stat-number" id="versements-total">0</h2>
+                                <div class="d-flex justify-content-between">
+                                    <span class="badge bg-success" id="versements-valides">0 validés</span>
+                                    <span class="badge bg-warning" id="versements-attente">0 en attente</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clients -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-people me-2"></i>Nouveaux clients</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-custom">
+                                <thead>
+                                    <tr><th>Nom</th><th>Téléphone</th><th>Date</th><th>Zone</th></tr>
+                                </thead>
+                                <tbody id="nouveaux-clients-list">
+                                    <td><td colspan="4" class="text-center">Chargement...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Performance Commerciaux -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="performance-card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Performance des commerciaux</h5>
+                            <a href="#" class="btn btn-sm btn-light" onclick="navigateTo('rapports')">Voir plus <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="performance-content">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+
+        dashboardPage.innerHTML = content;
+            // Charger les données supplémentaires
+        loadVentesStats();
+        loadVersementsStats();
+        loadNouveauxClients();
+        loadPerformanceCommerciaux();
+        
+        // Mettre à jour les traductions
+        const savedLang = localStorage.getItem('language') || 'fr';
+        updateUILanguage(savedLang);
+    })
+    .catch(error => {
+        console.error('Erreur chargement dashboard:', error);
+        dashboardPage.innerHTML = `
+            <div class="alert alert-danger m-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur lors du chargement du tableau de bord.
+                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadDashboard()">Réessayer</button>
+            </div>
+        `;
+    });
+}
+
+function loadVersementsStats() {
+    fetch('/api/versements/stats', {
+        headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('versements-total').textContent = (data.total || 0).toLocaleString('fr-FR');
+            document.getElementById('versements-valides').textContent = (data.valides || 0) + ' validés';
+            document.getElementById('versements-attente').textContent = (data.en_attente || 0) + ' en attente';
+        }
+    })
+    .catch(console.error);
+}
+
+function loadNouveauxClients() {
+    fetch('/api/clients?limit=5', {
+        headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById('nouveaux-clients-list');
+        if (data.success && data.data && data.data.length > 0) {
+            container.innerHTML = data.data.map(client => `
+                <tr>
+                    <td><strong>${client.nom}</strong></td>
+                    <td>${client.telephone || '-'}</td>
+                    <td>${new Date(client.created_at).toLocaleDateString('fr-FR')}</td>
+                    <td>${client.zone?.nom || '-'}</td>
+                </tr>
+            `).join('');
+        } else {
+            container.innerHTML = '<tr><td colspan="4" class="text-center">Aucun client enregistré</td></tr>';
+        }
+    })
+    .catch(console.error);
+}
+
+function loadPerformanceCommerciaux() {
+    fetch('/api/performance/commerciaux', {
+        headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById('performance-content');
+        if (data.success && data.data && data.data.length > 0) {
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead><tr><th>Commercial</th><th>Ventes</th><th>Quantité</th><th>Commandes</th><th>Performance</th></tr></thead>
+                        <tbody>
+                            ${data.data.map(com => `
+                                <tr>
+                                    <td><div class="d-flex align-items-center"><div class="commercial-avatar me-3">${com.nom?.[0] || 'C'}</div><div><strong>${com.nom || 'Non défini'}</strong><div class="text-muted small">${com.role || 'Commercial'}</div></div></div></td>
+                                    <td><strong class="text-primary">${(com.total_ventes || 0).toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
+                                    <td><span class="performance-badge">${com.total_quantite_vendue || 0}</span></td>
+                                    <td><strong class="text-success">${(com.total_commandes || 0).toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
+                                    <td><div class="d-flex align-items-center"><div class="progress-custom flex-grow-1 me-2"><div class="progress-bar" style="width: ${Math.min(100, ((com.total_ventes || 0) / Math.max(1, com.objectif || 100000)) * 100)}%"></div></div><span class="fw-bold">${Math.min(100, ((com.total_ventes || 0) / Math.max(1, com.objectif || 100000)) * 100).toFixed(1)}%</span></div></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<div class="text-center py-5"><i class="bi bi-bar-chart text-muted fs-1"></i><p class="text-muted mt-3">Aucune donnée de performance disponible</p></div>';
+        }
+    })
+    .catch(console.error);
 }
 
 // ========== CLIENTS ==========
