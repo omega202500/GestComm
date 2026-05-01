@@ -39,9 +39,10 @@ Route::get('/test-db-connection', function() {
     }
 });
      // CLIENTS
-     Route::get('/clients', [ClientController::class, 'index']);
+    Route::get('/clients/count', [ClientController::class, 'count']);    
+    Route::get('/clients/{id}', [ClientController::class, 'show']);     
+    Route::get('/clients', [ClientController::class, 'index']);
     Route::post('/clients', [ClientController::class, 'store']);
-    Route::get('/clients/{id}', [ClientController::class, 'show']);
     Route::put('/clients/{id}', [ClientController::class, 'update']);
     Route::delete('/clients/{id}', [ClientController::class, 'destroy']);
     Route::get('/clients/recherche', [ClientController::class, 'search']);
