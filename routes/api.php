@@ -52,7 +52,7 @@ Route::get('/test-db-connection', function() {
     Route::get('/produits/{id}', [ProduitController::class, 'show']);
     Route::get('/produits/stock/alerte', [ProduitController::class, 'stockAlerte']);
     // Commandes
-    Route::post('/commandes', [CommandeController::class, 'store']);
+    Route::get('/commandes', [CommandeController::class, 'store']);
     Route::get('/commandes/mine', [CommandeController::class, 'myCommandes']);
     Route::get('/commandes/{id}', [CommandeController::class, 'show']);
     Route::patch('/commandes/{id}/statut', [CommandeController::class, 'updateStatut']);
