@@ -15,72 +15,57 @@ class CommandeController extends Controller
     /**
      * Créer une commande (pour les commerciaux terrain)
      */
-    public function store(Request $request)
-    {
-        try {
-            // Validation des données
-            $validated = $request->validate([
-                'client_nom' => 'required|string|max:150',
-                'client_tel' => 'required|string|max:20',
-                'montant_total' => 'required|numeric|min:0',
-                'total_quantite' => 'required|integer|min:1',
-                'notes' => 'nullable|string'
+ public function store(Request $request)
+{
+    try {
+        $request->validate([
+            'client_nom' => 'required|string|max:150',
+            'client_tel' => 'required|string|max:20',
+            'montant_total' => 'required|numeric|min:0',
+            'total_quantite' => 'required|integer|min:1',
+            'notes' => 'nullable|string'
+        ]);
+
+        DB::beginTransaction();
+
+        // Rechercher ou créer le client SANS spécifier l'ID
+        $client = Client::where('telephone', $request->client_tel)->first();
+        
+        if (!$client) {
+            $client = Client::create([
+                'nom' => $request->client_nom,
+                'telephone' => $request->client_tel
             ]);
-
-            DB::beginTransaction();
-
-            // Créer ou récupérer le client
-            $client = Client::firstOrCreate(
-                ['telephone' => $request->client_tel],
-                ['nom' => $request->client_nom]
-            );
-
-            // Créer la commande
-            $commande = Commande::create([
-                'commercial_id' => Auth::id(),
-                'client_id' => $client->id,
-                'client_tel' => $request->client_tel,
-                'date_commande' => now(),
-                'statut' => 'en_attente',
-                'total_quantite' => $request->total_quantite,
-                'montant_total' => $request->montant_total,
-                'notes' => $request->notes ?? null
-            ]);
-
-            // Enregistrer l'activité
-            Activity::create([
-                'user_id' => Auth::id(),
-                'type' => 'commande',
-                'reference' => $commande->id,
-                'status' => 'en_attente',
-                'created_at' => now()
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Commande créée avec succès',
-                'data' => $commande
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur de validation',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ], 500);
         }
+
+        // Créer la commande
+        $commande = Commande::create([
+            'commercial_id' => Auth::id(),
+            'client_id' => $client->id,
+            'client_tel' => $request->client_tel,
+            'date_commande' => now(),
+            'statut' => 'en_attente',
+            'total_quantite' => $request->total_quantite,
+            'montant_total' => $request->montant_total,
+            'notes' => $request->notes ?? null
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Commande créée avec succès',
+            'data' => $commande
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Compter le nombre total de commandes
