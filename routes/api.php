@@ -139,4 +139,105 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     Route::apiResource('users', UserController::class);
     Route::apiResource('zones', ZoneController::class);
+    
+    // ======================
+    // STATISTIQUES DASHBOARD
+    // ======================
+    
+    // Statistiques globales du dashboard
+    Route::get('/dashboard/stats', function() {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'chiffre_affaires' => \App\Models\Commande::where('statut', 'livree')->sum('montant_total'),
+                'total_commandes' => \App\Models\Commande::count(),
+                'commandes_livrees' => \App\Models\Commande::where('statut', 'livree')->count(),
+                'commandes_en_attente' => \App\Models\Commande::where('statut', 'en_attente')->count(),
+                'total_ventes' => \App\Models\Vente::sum('montant_total'),
+                'total_quantite' => \App\Models\Vente::sum('total_quantite'),
+                'nb_ventes' => \App\Models\Vente::count(),
+                'total_versements' => \App\Models\Versement::sum('montant'),
+                'versements_valides' => \App\Models\Versement::where('valide', true)->sum('montant'),
+                'versements_en_attente' => \App\Models\Versement::where('valide', false)->sum('montant'),
+                'nb_clients' => \App\Models\Client::count(),
+                'nouveaux_clients' => \App\Models\Client::where('created_at', '>=', now()->subDays(30))->count()
+            ]
+        ]);
+    });
+    
+    // Statistiques des ventes
+    Route::get('/ventes/stats', function() {
+        return response()->json([
+            'success' => true,
+            'total_ventes' => \App\Models\Vente::sum('montant_total'),
+            'total_quantite' => \App\Models\Vente::sum('total_quantite'),
+            'nb_ventes' => \App\Models\Vente::count(),
+            'ventes_jour' => \App\Models\Vente::whereDate('created_at', now()->toDateString())->sum('montant_total'),
+            'ventes_mois' => \App\Models\Vente::whereMonth('created_at', now()->month)->sum('montant_total')
+        ]);
+    });
+    
+    // Statistiques des versements
+    Route::get('/versements/stats', function() {
+        return response()->json([
+            'success' => true,
+            'total' => \App\Models\Versement::sum('montant'),
+            'valides' => \App\Models\Versement::where('valide', true)->sum('montant'),
+            'en_attente' => \App\Models\Versement::where('valide', false)->sum('montant'),
+            'nb_versements' => \App\Models\Versement::count(),
+            'versements_jour' => \App\Models\Versement::whereDate('created_at', now()->toDateString())->sum('montant')
+        ]);
+    });
+    
+    // Performance des commerciaux
+    Route::get('/performance/commerciaux', function() {
+        $commerciaux = \App\Models\User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])
+            ->where('statut', true)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $commerciaux->map(function($user) {
+                $ventes = \App\Models\Vente::where('commercial_id', $user->id);
+                $commandes = \App\Models\Commande::where('commercial_id', $user->id);
+                
+                return [
+                    'id' => $user->id,
+                    'nom' => $user->nom,
+                    'role' => $user->role,
+                    'total_ventes' => $ventes->sum('montant_total'),
+                    'total_commandes' => $commandes->sum('montant_total'),
+                    'total_quantite_vendue' => $ventes->sum('total_quantite'),
+                    'nb_commandes' => $commandes->count(),
+                    'nb_ventes' => $ventes->count(),
+                    'objectif' => 100000
+                ];
+            })->sortByDesc('total_ventes')->values()
+        ]);
+    });
+    
+    // Dernières commandes (pour le dashboard)
+    Route::get('/dernieres-commandes', function() {
+        $commandes = \App\Models\Commande::with(['client', 'commercial'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $commandes
+        ]);
+    });
+    
+    // Derniers clients (pour le dashboard)
+    Route::get('/derniers-clients', function() {
+        $clients = \App\Models\Client::orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $clients
+        ]);
+    });
 });
