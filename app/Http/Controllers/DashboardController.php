@@ -47,7 +47,7 @@ class DashboardController extends Controller
                             'client' => $c->client->nom ?? 'Client inconnu',
                             'statut' => $c->statut,
                         ]);
-        $produits   = \App\Models\Produit::all();
+        $produits   = \App\Models\Produits::all();
 
         return view('dashboard', compact(
             'stats','activities','newCount','periode',
