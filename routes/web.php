@@ -48,6 +48,24 @@ Route::get('/session-test', function () {
         
         return response()->json(['success' => true, 'data' => $performances]);
     })->name('admin.performance.commerciaux');
+    
+    Route::get('/clients', function () {
+        $clients = Client::with('zone')
+            ->latest()
+            ->paginate(15);
+        
+        // Si vous utilisez le chargement AJAX
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data' => $clients->items(),
+                'total' => $clients->total()
+            ]);
+        }
+        
+        // Pour le chargement normal de page
+        return view('clients.index', compact('clients'));
+    })->name('clients.index');
 // ============================
 // AUTHENTIFICATION
 // ============================
