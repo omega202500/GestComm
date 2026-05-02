@@ -78,9 +78,12 @@ class ClientController extends Controller
         $statistiques = $this->clientService->getStatistiquesClientsParZone();
         return view('clients.statistiques', compact('statistiques'));
     }
- public function count()
+// Dans ClientController, VenteController, ProduitController
+public function count()
 {
-    return response()->json(['count' => Client::count()]);
+    return response()->json([
+        'success' => true,           // ← ajouter success: true
+        'count' => Client::count()   // ou Vente::count(), Produit::count()
+    ]);
 }
-
 }
