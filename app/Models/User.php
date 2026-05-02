@@ -38,4 +38,40 @@ class User extends Authenticatable
             $this->attributes['password'] = Hash::make($value);
         }
     }
+
+    // ======================
+    // RELATIONS
+    // ======================
+    
+    /**
+     * Relation avec les commandes
+     */
+    public function commandes()
+    {
+        return $this->hasMany(Commande::class, 'commercial_id');
+    }
+    
+    /**
+     * Relation avec les ventes
+     */
+    public function ventes()
+    {
+        return $this->hasMany(Vente::class, 'commercial_id');
+    }
+    
+    /**
+     * Relation avec les versements
+     */
+    public function versements()
+    {
+        return $this->hasMany(Versement::class, 'commercial_id');
+    }
+    
+    /**
+     * Relation avec la zone
+     */
+    public function zone()
+    {
+        return $this->belongsTo(Zone::class);
+    }
 }
