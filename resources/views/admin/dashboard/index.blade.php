@@ -1710,92 +1710,502 @@ function navigateTo(page) {
     }
 }
 function loadCommandes() {
-    // Afficher un loader
-    document.getElementById('main-content').innerHTML = `
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
+    const container = document.getElementById('main-content');
+    
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-cart text-primary me-2"></i>
+                    Commandes des Commerciaux
+                </h1>
+                <p class="text-muted mb-0">Liste des commandes enregistrées par l'application mobile</p>
             </div>
-            <p class="mt-3">Chargement des commandes...</p>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" id="filtre_statut">
+                            <option value="">Tous</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="en_cours">En cours</option>
+                            <option value="livree">Livrée</option>
+                            <option value="annulee">Annulée</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="filtrerCommandes()">
+                            <i class="bi bi-search me-1"></i> Filtrer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4" id="commandes-stats">
+            <div class="col-md-3">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total commandes</small>
+                        <h3 class="mb-0" id="stat_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">En attente</small>
+                        <h3 class="mb-0" id="stat_attente">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Livrées</small>
+                        <h3 class="mb-0" id="stat_livrees">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Montant total</small>
+                        <h3 class="mb-0" id="stat_montant">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des commandes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des commandes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Téléphone</th>
+                                <th>Date commande</th>
+                                <th>Quantité</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commandes-table-body">
+                            <tr><td colspan="9" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des commandes...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     `;
+    
+    // Charger les commandes
+    chargerCommandes();
+}
 
-    // Charger la page via AJAX
-    fetch('/commandes', {
+function chargerCommandes(filtres = {}) {
+    const url = new URL('/commandes', window.location.origin);
+    
+    // Ajouter les filtres
+    if (filtres.statut) url.searchParams.append('statut', filtres.statut);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+    
+    fetch(url, {
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
         }
     })
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById('main-content').innerHTML = html;
-        
-        // Réinitialiser les traductions
-        const savedLang = localStorage.getItem('language') || 'fr';
-        updateUILanguage(savedLang);
-        
-        // Initialiser les événements spécifiques aux commandes
-        initCommandesEvents();
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const commandes = data.data || [];
+            afficherCommandes(commandes);
+            mettreAJourStats(commandes);
+        } else {
+            throw new Error('Erreur chargement');
+        }
     })
     .catch(error => {
         console.error('Erreur:', error);
-        document.getElementById('main-content').innerHTML = `
-            <div class="alert alert-danger m-4">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Erreur lors du chargement des commandes.
-                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadCommandes()">Réessayer</button>
-            </div>
-        `;
+        const tbody = document.getElementById('commandes-table-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr><td colspan="9" class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <p class="mt-2">Erreur lors du chargement des commandes</p>
+                    <button class="btn btn-sm btn-primary" onclick="chargerCommandes()">Réessayer</button>
+                </td></tr>
+            `;
+        }
     });
 }
 
-function initCommandesEvents() {
-    // Initialiser les événements pour les commandes
-    // (filtres, actions, etc.)
+function afficherCommandes(commandes) {
+    const tbody = document.getElementById('commandes-table-body');
+    if (!tbody) return;
+    
+    if (!commandes || commandes.length === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="9" class="text-center py-4">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="mt-2 text-muted">Aucune commande trouvée</p>
+            </td></tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = commandes.map(commande => `
+        <tr>
+            <td><strong>#${commande.id}</strong></td>
+            <td>${escapeHtml(commande.client?.nom || '-')}<br>
+                <small class="text-muted">${escapeHtml(commande.client?.adresse || '')}</small>
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="commercial-avatar me-2" style="width: 30px; height: 30px; font-size: 14px;">
+                        ${(commande.commercial?.nom?.charAt(0) || 'C')}
+                    </div>
+                    ${escapeHtml(commande.commercial?.nom || '-')}
+                </div>
+             </td>
+            <td>${escapeHtml(commande.client_tel || '-')}</td>
+            <td>${formatDate(commande.date_commande)}</td>
+            <td>${commande.total_quantite || 0}</td>
+            <td><strong>${parseInt(commande.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>${getStatutBadge(commande.statut)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsCommande(${commande.id})" title="Voir détails">
+                    <i class="bi bi-eye"></i>
+                </button>
+             </td>
+        </tr>
+    `).join('');
+}
+
+function mettreAJourStats(commandes) {
+    const total = commandes.length;
+    const enAttente = commandes.filter(c => c.statut === 'en_attente').length;
+    const livrees = commandes.filter(c => c.statut === 'livree').length;
+    const montantTotal = commandes.reduce((sum, c) => sum + parseInt(c.montant_total || 0), 0);
+    
+    document.getElementById('stat_total').textContent = total;
+    document.getElementById('stat_attente').textContent = enAttente;
+    document.getElementById('stat_livrees').textContent = livrees;
+    document.getElementById('stat_montant').innerHTML = `${montantTotal.toLocaleString('fr-FR')} FCFA`;
+}
+
+function filtrerCommandes() {
+    const statut = document.getElementById('filtre_statut').value;
+    const date_debut = document.getElementById('filtre_date_debut').value;
+    const date_fin = document.getElementById('filtre_date_fin').value;
+    
+    chargerCommandes({ statut, date_debut, date_fin });
+}
+
+function voirDetailsCommande(id) {
+    fetch(`/commandes/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const commande = data.data;
+            afficherModalDetails(commande, 'commande');
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
 }
 function loadVentes() {
-    // Afficher un loader
-    document.getElementById('main-content').innerHTML = `
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
+    const container = document.getElementById('main-content');
+    
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-cash-coin text-primary me-2"></i>
+                    Ventes des Commerciaux
+                </h1>
+                <p class="text-muted mb-0">Historique des ventes enregistrées par l'application mobile</p>
             </div>
-            <p class="mt-3">Chargement des ventes...</p>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Commercial</label>
+                        <select class="form-select" id="filtre_commercial">
+                            <option value="">Tous</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total ventes</small>
+                        <h3 class="mb-0" id="ventes_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Chiffre d'affaires</small>
+                        <h3 class="mb-0" id="ventes_ca">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Articles vendus</small>
+                        <h3 class="mb-0" id="ventes_articles">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des ventes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des ventes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Date vente</th>
+                                <th>Articles</th>
+                                <th>Montant</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ventes-table-body">
+                            <tr><td colspan="7" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des ventes...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     `;
-
-    // Charger la page via AJAX
-    fetch('/ventes', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.text())
-    .then(html => {
-        document.getElementById('main-content').innerHTML = html;
-        
-        // Réinitialiser les traductions
-        const savedLang = localStorage.getItem('language') || 'fr';
-        updateUILanguage(savedLang);
-        
-        // Initialiser les événements spécifiques aux ventes
-        initVentesEvents();
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        document.getElementById('main-content').innerHTML = `
-            <div class="alert alert-danger m-4">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Erreur lors du chargement des ventes.
-                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadVentes()">Réessayer</button>
-            </div>
-        `;
-    });
+    
+    // Charger les commerciaux pour le filtre
+    chargerCommerciaux();
+    // Charger les ventes
+    chargerVentes();
 }
 
-function initVentesEvents() {
-    // Initialiser les événements pour les ventes
-    // (filtres, stats, etc.)
+function chargerCommerciaux() {
+    fetch('/users?role=terrain', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const select = document.getElementById('filtre_commercial');
+        if (select && data.data) {
+            select.innerHTML = '<option value="">Tous</option>' + 
+                data.data.map(user => `<option value="${user.id}">${escapeHtml(user.nom)}</option>`).join('');
+        }
+    })
+    .catch(error => console.error('Erreur chargement commerciaux:', error));
+}
+
+function chargerVentes(filtres = {}) {
+    const url = new URL('/ventes', window.location.origin);
+    
+    if (filtres.commercial_id) url.searchParams.append('commercial_id', filtres.commercial_id);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+    
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.data) {
+            const ventes = data.data;
+            afficherVentes(ventes);
+            mettreAJourStatsVentes(ventes);
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+
+function afficherVentes(ventes) {
+    const tbody = document.getElementById('ventes-table-body');
+    if (!tbody) return;
+    
+    if (!ventes || ventes.length === 0) {
+        tbody.innerHTML = '<td><td colspan="7" class="text-center py-4">Aucune vente trouvée</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = ventes.map(vente => `
+        <tr>
+            <td><strong>#${vente.id}</strong></td>
+            <td>${escapeHtml(vente.client?.nom || '-')}<br>
+                <small>${escapeHtml(vente.client?.telephone || '-')}</small>
+            </td>
+            <td>${escapeHtml(vente.commercial?.nom || '-')}</td>
+            <td>${formatDate(vente.created_at)}</td>
+            <td>${vente.total_quantite || 0}</td>
+            <td><strong class="text-success">${parseInt(vente.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="voirDetailsVente(${vente.id})">
+                    <i class="bi bi-receipt"></i>
+                </button>
+             </td>
+        </tr>
+    `).join('');
+}
+
+function mettreAJourStatsVentes(ventes) {
+    const total = ventes.length;
+    const ca = ventes.reduce((sum, v) => sum + parseInt(v.montant_total || 0), 0);
+    const articles = ventes.reduce((sum, v) => sum + (v.total_quantite || 0), 0);
+    
+    document.getElementById('ventes_total').textContent = total;
+    document.getElementById('ventes_ca').innerHTML = `${ca.toLocaleString('fr-FR')} FCFA`;
+    document.getElementById('ventes_articles').textContent = articles;
+}
+
+function voirDetailsVente(id) {
+    fetch(`/ventes/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            afficherModalDetails(data.data, 'vente');
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+
+function afficherModalDetails(item, type) {
+    // Créer le modal dynamiquement
+    const modalHtml = `
+        <div class="modal fade" id="detailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-${type === 'commande' ? 'cart' : 'cash-stack'} me-2"></i>
+                            Détails de la ${type === 'commande' ? 'commande' : 'vente'} #${item.id}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Client :</strong>
+                                <p>${escapeHtml(item.client?.nom || '-')}<br>
+                                <small>Tel: ${escapeHtml(item.client?.telephone || '-')}</small><br>
+                                <small>Adresse: ${escapeHtml(item.client?.adresse || '-')}</small></p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Commercial :</strong>
+                                <p>${escapeHtml(item.commercial?.nom || '-')}<br>
+                                <small>Tel: ${escapeHtml(item.commercial?.telephone || '-')}</small></p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Date :</strong>
+                                <p>${formatDate(item.date_commande || item.created_at)}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Statut :</strong>
+                                <p>${getStatutBadge(item.statut)}</p>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <h6>Détails de la commande</h6>
+                                <p>Quantité totale: ${item.total_quantite || 0} articles</p>
+                                <p class="h4 text-primary">Montant total: ${parseInt(item.montant_total || 0).toLocaleString('fr-FR')} FCFA</p>
+                                ${item.notes ? `<p><strong>Notes:</strong> ${escapeHtml(item.notes)}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Supprimer l'ancien modal s'il existe
+    const oldModal = document.getElementById('detailsModal');
+    if (oldModal) oldModal.remove();
+    
+    // Ajouter et afficher le nouveau modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+    
+    // Nettoyer après fermeture
+    document.getElementById('detailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
 }
 function loadVersements() {
     document.getElementById('main-content').innerHTML = `
