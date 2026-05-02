@@ -1638,6 +1638,69 @@ function updateBadges() {
 
     setBadge('activites-badge', 'activites-badge-mobile', newCount);
 }
+// ========== FONCTIONS UTILITAIRES POUR LES COMMANDES/VENTES ==========
+
+function getStatutBadge(statut) {
+    const badges = {
+        'en_attente': '<span class="badge bg-warning">⏳ En attente</span>',
+        'en_cours': '<span class="badge bg-info">🚚 En cours</span>',
+        'livree': '<span class="badge bg-success">✅ Livrée</span>',
+        'annulee': '<span class="badge bg-danger">❌ Annulée</span>',
+        'validee': '<span class="badge bg-success">✓ Validée</span>',
+        'payee': '<span class="badge bg-primary">💰 Payée</span>'
+    };
+    return badges[statut] || `<span class="badge bg-secondary">${statut}</span>`;
+}
+
+function getStatutLabel(statut) {
+    const labels = {
+        'en_attente': 'En attente',
+        'en_cours': 'En cours', 
+        'livree': 'Livrée',
+        'annulee': 'Annulée',
+        'validee': 'Validée',
+        'payee': 'Payée'
+    };
+    return labels[statut] || statut;
+}
+
+function getStatutColor(statut) {
+    const colors = {
+        'en_attente': 'warning',
+        'en_cours': 'info',
+        'livree': 'success',
+        'annulee': 'danger',
+        'validee': 'success',
+        'payee': 'primary'
+    };
+    return colors[statut] || 'secondary';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch(e) {
+        return dateStr;
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 function setupEventListeners() {
     // Navigation
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -1873,42 +1936,65 @@ function afficherCommandes(commandes) {
     
     if (!commandes || commandes.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="9" class="text-center py-4">
-                <i class="bi bi-inbox fs-1 text-muted"></i>
-                <p class="mt-2 text-muted">Aucune commande trouvée</p>
-            </td></tr>
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="mt-2 text-muted">Aucune commande trouvée</p>
+                </td>
+            </tr>
         `;
         return;
     }
     
-    tbody.innerHTML = commandes.map(commande => `
-        <tr>
-            <td><strong>#${commande.id}</strong></td>
-            <td>${escapeHtml(commande.client?.nom || '-')}<br>
-                <small class="text-muted">${escapeHtml(commande.client?.adresse || '')}</small>
-            </td>
-            <td>
-                <div class="d-flex align-items-center">
-                    <div class="commercial-avatar me-2" style="width: 30px; height: 30px; font-size: 14px;">
-                        ${(commande.commercial?.nom?.charAt(0) || 'C')}
+    tbody.innerHTML = commandes.map(commande => {
+        // Déterminer le badge de statut
+        let badgeHtml = '';
+        switch(commande.statut) {
+            case 'en_attente':
+                badgeHtml = '<span class="badge bg-warning">⏳ En attente</span>';
+                break;
+            case 'en_cours':
+                badgeHtml = '<span class="badge bg-info">🚚 En cours</span>';
+                break;
+            case 'livree':
+                badgeHtml = '<span class="badge bg-success">✅ Livrée</span>';
+                break;
+            case 'annulee':
+                badgeHtml = '<span class="badge bg-danger">❌ Annulée</span>';
+                break;
+            default:
+                badgeHtml = `<span class="badge bg-secondary">${commande.statut}</span>`;
+        }
+        
+        return `
+            <tr>
+                <td><strong>#${commande.id}</strong></td>
+                <td>
+                    ${escapeHtml(commande.client?.nom || '-')}<br>
+                    <small class="text-muted">${escapeHtml(commande.client?.adresse || '')}</small>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="commercial-avatar me-2" style="width: 30px; height: 30px; font-size: 14px;">
+                            ${(commande.commercial?.nom?.charAt(0) || 'C')}
+                        </div>
+                        ${escapeHtml(commande.commercial?.nom || '-')}
                     </div>
-                    ${escapeHtml(commande.commercial?.nom || '-')}
-                </div>
-             </td>
-            <td>${escapeHtml(commande.client_tel || '-')}</td>
-            <td>${formatDate(commande.date_commande)}</td>
-            <td>${commande.total_quantite || 0}</td>
-            <td><strong>${parseInt(commande.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
-            <td>${getStatutBadge(commande.statut)}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsCommande(${commande.id})" title="Voir détails">
-                    <i class="bi bi-eye"></i>
-                </button>
-             </td>
-        </tr>
-    `).join('');
+                </td>
+                <td>${escapeHtml(commande.client_tel || '-')}</td>
+                <td>${formatDate(commande.date_commande)}</td>
+                <td>${commande.total_quantite || 0}</td>
+                <td><strong>${parseInt(commande.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsCommande(${commande.id})" title="Voir détails">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
-
 function mettreAJourStats(commandes) {
     const total = commandes.length;
     const enAttente = commandes.filter(c => c.statut === 'en_attente').length;
