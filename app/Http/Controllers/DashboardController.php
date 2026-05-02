@@ -49,7 +49,7 @@ class DashboardController extends Controller
                         ]);
         $produits   = \App\Models\Produits::all();
 
-        return view('admin/dashboard', compact(
+        return view('admin.dashboard.index', compact(
             'stats','activities','newCount','periode',
             'livraisons','terrains','chauffeurs','commandes','produits'
         ));
