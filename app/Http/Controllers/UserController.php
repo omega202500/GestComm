@@ -20,6 +20,28 @@ class User extends Authenticatable
         'statut',
         'photo'
     ];
+    public function index(Request $request)
+{
+    $query = User::query();
+    
+    // Filtrer par rôle si demandé
+    if ($request->has('role')) {
+        $query->where('role', $request->role);
+    }
+    
+    $users = $query->get();
+    
+    // Si c'est une requête AJAX, retourner JSON
+    if ($request->ajax() || $request->wantsJson()) {
+        return response()->json([
+            'success' => true,
+            'data' => $users
+        ]);
+    }
+    
+    // Sinon, retourner la vue
+    return view('users.index', compact('users'));
+}
 
     protected $hidden = [
         'password',
