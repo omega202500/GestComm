@@ -82,25 +82,21 @@ class CommandeController extends Controller
         return response()->json(['count' => $count]);
     }
 
-    // Liste des commandes (pour admin)
+    // Liste des commandes pour admin
     public function index(Request $request)
     {
-        $query = Commande::with(['commercial', 'client', 'zone']);
-
-        // Filtres
-        if ($request->statut) {
-            $query->where('statut', $request->statut);
+        $commandes = Commande::with(['client'])->orderBy('created_at', 'desc')->get();
+    
+        // Si requête AJAX/API, retourner JSON
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data'    => $commandes   // tableau direct, pas paginé pour éviter le bug .filter()
+            ]);
         }
-        if ($request->date_debut) {
-            $query->whereDate('date_commande', '>=', $request->date_debut);
-        }
-        if ($request->date_fin) {
-            $query->whereDate('date_commande', '<=', $request->date_fin);
-        }
-
-        $commandes = $query->orderBy('created_at', 'desc')->paginate(20);
-
-        return response()->json($commandes);
+    
+        // Sinon retourner la vue HTML
+        return view('commandes.index', compact('commandes'));
     }
 
     // Détail d'une commande
