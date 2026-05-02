@@ -2095,206 +2095,384 @@ function deleteProduct(id) {
         }
 
 // ========== DASHBOARD ==========
+
 function loadDashboard() {
     const dashboardPage = document.getElementById('main-content');
-    dashboardPage.innerHTML = `<div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-3">Chargement...</p>
-    </div>`;
+    if (!dashboardPage) return;
 
-    const headers = {
+    dashboardPage.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Chargement du tableau de bord...</p>
+        </div>`;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const ajaxHeaders = {
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-CSRF-TOKEN': csrfToken,
         'X-Requested-With': 'XMLHttpRequest'
     };
 
-    Promise.all([
-        // ✅ Route WEB avec CSRF (pas API avec token Bearer)
-        fetch('/admin/dashboard/stats', { headers }).then(r => r.json()),
-        fetch('/commandes', { headers }).then(r => r.json())
-    ])
-    .then(([statsData, commandesResponse]) => {
-        const stats = statsData.data || statsData;
+    // Un seul appel — /admin/dashboard/stats contient TOUT
+    fetch('/admin/dashboard/stats', { headers: ajaxHeaders })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' sur /admin/dashboard/stats');
+            return r.json();
+        })
+        .then(response => {
+            const s = response.data || response;
 
-        // ✅ Extraire le tableau — Laravel peut retourner {data:[...]} ou un tableau direct
-        let commandes = [];
-        if (Array.isArray(commandesResponse)) {
-            commandes = commandesResponse;
-        } else if (commandesResponse.data && Array.isArray(commandesResponse.data)) {
-            commandes = commandesResponse.data;
-        }
+            // Commandes depuis les stats (pas besoin d'un 2e appel)
+            const totalCommandes     = s.commandes?.total     || 0;
+            const commandesLivrees   = s.commandes?.livrees   || 0;
+            const commandesEnAttente = s.commandes?.en_attente || 0;
 
-        const totalCommandes     = commandes.length;
-        const commandesLivrees   = commandes.filter(c => c.statut === 'livree').length;
-        const commandesEnAttente = commandes.filter(c => c.statut === 'en_attente').length;
-
-        dashboardPage.innerHTML = `
-        <div class="main-header">
-            <h1 class="h3 fw-bold mb-1">
-                <i class="bi bi-speedometer2 text-primary me-2"></i>
-                Tableau de bord Administrateur
-            </h1>
-            <p class="text-muted mb-0">Vue d'ensemble de votre activité commerciale</p>
-        </div>
-
-        <div class="row g-4 mb-4">
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card border-primary h-100">
-                    <div class="card-body p-4">
-                        <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
-                        <p class="text-muted mb-1">CHIFFRE D'AFFAIRES</p>
-                        <h2 class="stat-number">${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')} <small class="fs-6 text-muted">FCFA</small></h2>
+            dashboardPage.innerHTML = `
+            <div class="main-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 fw-bold mb-1">
+                            <i class="bi bi-speedometer2 text-primary me-2"></i>
+                            Tableau de bord Administrateur
+                        </h1>
+                        <p class="text-muted mb-0">Vue d'ensemble de votre activité commerciale</p>
+                    </div>
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                 style="width:32px;height:32px;font-size:14px;">A</div>
+                            <i class="bi bi-person-circle fs-4"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2">
+                            <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i>Mon Profil</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal()"><i class="bi bi-lock me-2"></i>Changer Mot de Passe</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/logout" id="logout-form" style="display:none;">
+                                    <input type="hidden" name="_token" value="${csrfToken}">
+                                </form>
+                                <a class="dropdown-item text-danger" href="#"
+                                   onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                   <i class="bi bi-box-arrow-right me-2"></i>Déconnexion
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card border-success h-100">
-                    <div class="card-body p-4">
-                        <div class="stat-icon success"><i class="bi bi-cart-check"></i></div>
-                        <p class="text-muted mb-1">COMMANDES</p>
-                        <h2 class="stat-number">${totalCommandes}</h2>
-                        <span class="badge bg-success">${commandesLivrees} livrées</span>
-                        ${commandesEnAttente > 0 ? `<span class="badge bg-warning ms-1">${commandesEnAttente} en attente</span>` : ''}
+
+            <!-- Cartes statistiques -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-primary h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
+                            <p class="text-muted mb-1">CHIFFRE D'AFFAIRES</p>
+                            <h2 class="stat-number">
+                                ${(s.chiffre_affaires || 0).toLocaleString('fr-FR')}
+                                <small class="fs-6 text-muted">FCFA</small>
+                            </h2>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card border-info h-100">
-                    <div class="card-body p-4">
-                        <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
-                        <p class="text-muted mb-1">VENTES</p>
-                        <h2 class="stat-number" id="ventes-total">--</h2>
-                        <small class="text-muted" id="ventes-montant">Chargement...</small>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-success h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon success"><i class="bi bi-cart-check"></i></div>
+                            <p class="text-muted mb-1">COMMANDES</p>
+                            <h2 class="stat-number">${totalCommandes}</h2>
+                            <span class="badge bg-success">${commandesLivrees} livrées</span>
+                            ${commandesEnAttente > 0
+                                ? `<span class="badge bg-warning ms-1">${commandesEnAttente} en attente</span>`
+                                : ''}
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card border-warning h-100">
-                    <div class="card-body p-4">
-                        <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
-                        <p class="text-muted mb-1">VERSEMENTS</p>
-                        <h2 class="stat-number" id="versements-total">--</h2>
-                        <div>
-                            <span class="badge bg-success" id="versements-valides">0 validés</span>
-                            <span class="badge bg-warning" id="versements-attente">0 en attente</span>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-info h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
+                            <p class="text-muted mb-1">VENTES</p>
+                            <h2 class="stat-number">${s.nb_ventes || 0}</h2>
+                            <small class="text-muted">
+                                ${(s.total_ventes || 0).toLocaleString('fr-FR')} FCFA total
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-warning h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
+                            <p class="text-muted mb-1">VERSEMENTS</p>
+                            <h2 class="stat-number">
+                                ${(s.total_versements || 0).toLocaleString('fr-FR')}
+                                <small class="fs-6 text-muted">FCFA</small>
+                            </h2>
+                            <span class="badge bg-success">${s.versements_valides || 0} validés</span>
+                            <span class="badge bg-warning ms-1">${s.versements_en_attente || 0} en attente</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="row g-4 mb-4">
-            <div class="col-12">
-                <div class="performance-card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Performance des commerciaux</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="performance-content">
-                            <div class="text-center py-3">
-                                <div class="spinner-border spinner-border-sm text-primary"></div>
-                                Chargement...
+            <!-- Clients récents -->
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people me-2"></i>
+                                Clients (${s.total_clients || 0} au total,
+                                ${s.clients_aujourd_hui || 0} aujourd'hui)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="nouveaux-clients-list">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                    Chargement des clients...
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        `;
 
-        // Charger les stats complémentaires
-        loadVentesStats();
-        loadVersementsStats();
-        loadPerformanceCommerciaux();
-
-        const savedLang = localStorage.getItem('language') || 'fr';
-        updateUILanguage(savedLang);
-    })
-    .catch(error => {
-        console.error('Erreur dashboard:', error);
-        dashboardPage.innerHTML = `
-            <div class="alert alert-danger m-4">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Erreur de chargement: ${error.message}
-                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadDashboard()">Réessayer</button>
+            <!-- Performance commerciaux -->
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="performance-card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-trophy me-2"></i>
+                                    Performance des commerciaux
+                                </h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="performance-content">
+                                ${renderPerformance(s.performance || [])}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        `;
+            `;
+
+            // Charger les clients en AJAX séparément
+            loadNouveauxClients(ajaxHeaders);
+
+            // Mettre à jour les badges de la sidebar
+            updateBadgesFromStats(s);
+
+            const savedLang = localStorage.getItem('language') || 'fr';
+            updateUILanguage(savedLang);
+        })
+        .catch(error => {
+            console.error('Erreur chargement dashboard:', error);
+            dashboardPage.innerHTML = `
+                <div class="alert alert-danger m-4">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Erreur de chargement: <strong>${error.message}</strong>
+                    <hr>
+                    <small>Vérifiez que <code>DashboardController::stats()</code> fonctionne
+                    et que la route <code>/admin/dashboard/stats</code> est bien déclarée.</small>
+                    <br>
+                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadDashboard()">
+                        🔄 Réessayer
+                    </button>
+                </div>`;
+        });
+}
+
+// ── 2. renderPerformance ──────────────────────
+function renderPerformance(performance) {
+    if (!performance || performance.length === 0) {
+        return `
+            <div class="text-center py-5">
+                <i class="bi bi-bar-chart text-muted fs-1"></i>
+                <p class="text-muted mt-3">Aucune donnée de performance disponible</p>
+                <p class="text-muted small">Les données apparaîtront lorsque les commerciaux auront effectué des activités</p>
+            </div>`;
+    }
+
+    const rows = performance.map(com => {
+        const pct = Math.min(100,
+            ((com.total_ventes || 0) / Math.max(1, com.objectif || 500000)) * 100
+        ).toFixed(1);
+
+        return `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="commercial-avatar me-3">
+                            ${(com.nom || 'C')[0].toUpperCase()}
+                        </div>
+                        <div>
+                            <strong>${com.nom || 'Non défini'}</strong>
+                            <div class="text-muted small">${com.role || 'Commercial'}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <strong class="text-primary">${(com.total_ventes || 0).toLocaleString('fr-FR')}</strong>
+                    <small class="text-muted d-block">FCFA</small>
+                </td>
+                <td><span class="performance-badge">${com.total_quantite_vendue || 0}</span></td>
+                <td><strong class="text-success">${com.total_commandes || 0}</strong></td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="progress-custom flex-grow-1 me-2">
+                            <div class="progress-bar" style="width:${pct}%"></div>
+                        </div>
+                        <span class="fw-bold">${pct}%</span>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+
+    return `
+        <div class="table-responsive">
+            <table class="table table-custom">
+                <thead>
+                    <tr>
+                        <th>Commercial</th>
+                        <th>Ventes</th>
+                        <th>Quantité</th>
+                        <th>Commandes</th>
+                        <th>Performance</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
+
+// ── 3. loadNouveauxClients ────────────────────
+function loadNouveauxClients(headers) {
+    fetch('/clients?limit=5', { headers: headers || {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-Requested-With': 'XMLHttpRequest'
+    }})
+    .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+    .then(data => {
+        const container = document.getElementById('nouveaux-clients-list');
+        if (!container) return;
+
+        // Accepter {data:[...]} ou {clients:[...]} ou tableau direct
+        const clients = Array.isArray(data) ? data
+            : (data.data || data.clients || []);
+
+        if (clients.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">Aucun client enregistré</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-custom">
+                    <thead>
+                        <tr><th>Nom</th><th>Téléphone</th><th>Date</th><th>Zone</th></tr>
+                    </thead>
+                    <tbody>
+                        ${clients.slice(0, 5).map(c => `
+                            <tr>
+                                <td><strong>${c.nom || '-'}</strong></td>
+                                <td>${c.telephone || '-'}</td>
+                                <td>${c.created_at
+                                    ? new Date(c.created_at).toLocaleDateString('fr-FR')
+                                    : '-'}</td>
+                                <td>${c.zone?.nom || '-'}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    })
+    .catch(err => {
+        console.warn('Clients non chargés:', err);
+        const container = document.getElementById('nouveaux-clients-list');
+        if (container) container.innerHTML =
+            '<p class="text-muted text-center py-3">Impossible de charger les clients</p>';
     });
 }
 
-// ✅ Fonction manquante — stats des ventes
+// ── 4. loadVentesStats ────────────────────────
+// (gardée pour compatibilité mais plus appelée par loadDashboard)
 function loadVentesStats() {
-    const headers = {
-        'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-        'X-Requested-With': 'XMLHttpRequest'
-    };
-
-    fetch('/ventes/stats', { headers })
-        .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
-        .then(data => {
-            const el = document.getElementById('ventes-total');
-            const montantEl = document.getElementById('ventes-montant');
-            if (el) el.textContent = data.count || 0;
-            if (montantEl) montantEl.textContent = (data.total || 0).toLocaleString('fr-FR') + ' FCFA';
-        })
-        .catch(err => {
-            console.warn('Stats ventes non disponibles:', err);
-            const el = document.getElementById('ventes-total');
-            if (el) el.textContent = '0';
-        });
+    console.log('loadVentesStats: stats déjà incluses dans /admin/dashboard/stats');
 }
 
-// ✅ Fonction manquante — stats des versements
+// ── 5. loadVersementsStats ────────────────────
 function loadVersementsStats() {
+    console.log('loadVersementsStats: stats déjà incluses dans /admin/dashboard/stats');
+}
+
+// ── 6. loadPerformanceCommerciaux ─────────────
+function loadPerformanceCommerciaux() {
+    console.log('loadPerformanceCommerciaux: performance déjà incluse dans /admin/dashboard/stats');
+}
+
+// ── 7. updateBadgesFromStats ──────────────────
+// Met à jour les badges de la sidebar depuis les stats déjà chargées
+function updateBadgesFromStats(s) {
+    function setBadge(desktopId, mobileId, count) {
+        [desktopId, mobileId].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = count;
+            el.style.display = count > 0 ? 'inline' : 'none';
+        });
+    }
+
+    setBadge('commandes-badge',   'commandes-badge-mobile',   s.commandes?.en_attente || 0);
+    setBadge('versements-badge',  'versements-badge-mobile',  s.versements_en_attente || 0);
+    setBadge('activites-badge',   'activites-badge-mobile',   newCount || 0);
+
+    // Pour ventes, produits, clients — appels séparés légers
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const headers = {
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-CSRF-TOKEN': csrfToken,
         'X-Requested-With': 'XMLHttpRequest'
     };
 
-    fetch('/versements/stats', { headers })
-        .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
-        .then(data => {
-            const el = document.getElementById('versements-total');
-            const validesEl = document.getElementById('versements-valides');
-            const attenteEl = document.getElementById('versements-attente');
-            if (el) el.textContent = (data.total || 0).toLocaleString('fr-FR');
-            if (validesEl) validesEl.textContent = (data.valides || 0) + ' validés';
-            if (attenteEl) attenteEl.textContent = (data.en_attente || 0) + ' en attente';
-        })
-        .catch(err => {
-            console.warn('Stats versements non disponibles:', err);
-        });
+    const safeFetch = (url, id1, id2) => {
+        fetch(url, { headers })
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(d => setBadge(id1, id2, d.count || 0))
+            .catch(() => {}); // silencieux si la route n'existe pas encore
+    };
+
+    safeFetch('/ventes/count',   'ventes-badge',   'ventes-badge-mobile');
+    safeFetch('/produits/count', 'produits-badge', 'produits-badge-mobile');
+    safeFetch('/clients/count',  'clients-badge',  'clients-badge-mobile');
+    safeFetch('/commandes/count','commandes-badge','commandes-badge-mobile');
+
+    // Livraisons depuis les données déjà en mémoire
+    const livraisonsEnCours = (typeof livraisonsData !== 'undefined')
+        ? livraisonsData.filter(l => l.statut === 'en_cours').length : 0;
+    setBadge('livraisons-badge', 'livraisons-badge-mobile', livraisonsEnCours);
 }
 
-function loadNouveauxClients() {
-    fetch('/api/clients?limit=5', {
-        headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-    })
-    .then(r => r.json())
-    .then(data => {
-        const container = document.getElementById('nouveaux-clients-list');
-        if (data.success && data.data && data.data.length > 0) {
-            container.innerHTML = data.data.map(client => `
-                <tr>
-                    <td><strong>${client.nom}</strong></td>
-                    <td>${client.telephone || '-'}</td>
-                    <td>${new Date(client.created_at).toLocaleDateString('fr-FR')}</td>
-                    <td>${client.zone?.nom || '-'}</td>
-                </tr>
-            `).join('');
-        } else {
-            container.innerHTML = '<tr><td colspan="4" class="text-center">Aucun client enregistré</td></tr>';
-        }
-    })
-    .catch(console.error);
+// ── 8. updateBadges (appelée au démarrage) ────
+function updateBadges() {
+    updateBadgesFromStats(stats || {});
 }
-
 function loadPerformanceCommerciaux() {
-    fetch('/api/performance/commerciaux', {
-        headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-    })
+   fetch('/admin/performance/commerciaux', {  // ← Route web, pas API
+    headers: {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-Requested-With': 'XMLHttpRequest'
+    }
+})
     .then(r => r.json())
     .then(data => {
         const container = document.getElementById('performance-content');
