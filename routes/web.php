@@ -29,7 +29,25 @@ Route::get('/session-test', function () {
         'cookies' => request()->cookies->all()
     ]);
 });
-
+    Route::get('/admin/performance/commerciaux', function () {
+        // Récupérez les données de performance
+        $performances = User::where('role', 'commercial')
+            ->with(['ventes', 'commandes'])
+            ->get()
+            ->map(function ($commercial) {
+                return [
+                    'id' => $commercial->id,
+                    'nom' => $commercial->nom,
+                    'role' => $commercial->role,
+                    'total_ventes' => $commercial->ventes->sum('montant'),
+                    'total_commandes' => $commercial->commandes->count(),
+                    'total_quantite_vendue' => $commercial->ventes->sum('quantite'),
+                    'objectif' => 500000
+                ];
+            });
+        
+        return response()->json(['success' => true, 'data' => $performances]);
+    })->name('admin.performance.commerciaux');
 // ============================
 // AUTHENTIFICATION
 // ============================
