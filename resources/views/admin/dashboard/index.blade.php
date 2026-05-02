@@ -2355,23 +2355,46 @@ function renderPerformance(performance) {
 }
 
 // ── 3. loadNouveauxClients ────────────────────
+// ── 3. loadNouveauxClients (version améliorée) ────────────────────
 function loadNouveauxClients(headers) {
-    fetch('/clients?limit=5', { headers: headers || {
+    // Headers par défaut si non fournis
+    const defaultHeaders = {
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
         'X-Requested-With': 'XMLHttpRequest'
-    }})
-    .then(r => r.ok ? r.json() : Promise.reject('HTTP ' + r.status))
+    };
+    
+    fetch('/clients?limit=5', { 
+        headers: headers || defaultHeaders 
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const container = document.getElementById('nouveaux-clients-list');
         if (!container) return;
 
-        // Accepter {data:[...]} ou {clients:[...]} ou tableau direct
-        const clients = Array.isArray(data) ? data
-            : (data.data || data.clients || []);
-
+        // ✅ Supporte plusieurs formats de réponse
+        let clients = [];
+        if (Array.isArray(data)) {
+            clients = data;
+        } else if (data.data && Array.isArray(data.data)) {
+            clients = data.data;
+        } else if (data.clients && Array.isArray(data.clients)) {
+            clients = data.clients;
+        } else if (data.success && data.data && Array.isArray(data.data)) {
+            clients = data.data;
+        }
+        
         if (clients.length === 0) {
-            container.innerHTML = '<p class="text-muted text-center py-3">Aucun client enregistré</p>';
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-people text-muted fs-1"></i>
+                    <p class="text-muted mt-2 mb-0">Aucun client enregistré</p>
+                </div>`;
             return;
         }
 
@@ -2379,32 +2402,53 @@ function loadNouveauxClients(headers) {
             <div class="table-responsive">
                 <table class="table table-custom">
                     <thead>
-                        <tr><th>Nom</th><th>Téléphone</th><th>Date</th><th>Zone</th></tr>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Téléphone</th>
+                            <th>Date</th>
+                            <th>Zone</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        ${clients.slice(0, 5).map(c => `
+                        ${clients.slice(0, 5).map(client => `
                             <tr>
-                                <td><strong>${c.nom || '-'}</strong></td>
-                                <td>${c.telephone || '-'}</td>
-                                <td>${c.created_at
-                                    ? new Date(c.created_at).toLocaleDateString('fr-FR')
+                                <td><strong>${escapeHtml(client.nom) || '-'}</strong></td>
+                                <td>${escapeHtml(client.telephone) || '-'}</td>
+                                <td>${client.created_at 
+                                    ? new Date(client.created_at).toLocaleDateString('fr-FR')
                                     : '-'}</td>
-                                <td>${c.zone?.nom || '-'}</td>
-                            </tr>`).join('')}
+                                <td>${escapeHtml(client.zone?.nom) || '-'}</td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
             </div>`;
     })
     .catch(err => {
-        console.warn('Clients non chargés:', err);
+        console.error('Erreur chargement clients:', err);
         const container = document.getElementById('nouveaux-clients-list');
-        if (container) container.innerHTML =
-            '<p class="text-muted text-center py-3">Impossible de charger les clients</p>';
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-warning text-center py-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Impossible de charger les clients
+                </div>`;
+        }
     });
 }
 
+// Fonction utilitaire pour sécuriser l'affichage HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 // ── 4. loadVentesStats ────────────────────────
-// (gardée pour compatibilité mais plus appelée par loadDashboard)
+
 function loadVentesStats() {
     console.log('loadVentesStats: stats déjà incluses dans /admin/dashboard/stats');
 }
