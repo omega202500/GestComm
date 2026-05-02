@@ -1600,7 +1600,7 @@ function updateBadges() {
             const el = document.getElementById(id);
             if (!el) return;
             el.textContent = count;
-            el.style.display = count > 0 ? 'inline' : 'none';
+            el.style.display = count > 0 ? 'display' : 'none';
         });
     }
 
@@ -2117,24 +2117,35 @@ function loadDashboard() {
         </div>
     `;
 
-    // Charger les statistiques depuis l'API
+    // ✅ Utiliser les routes WEB avec CSRF, pas les routes API avec token
     Promise.all([
-        fetch('/api/dashboard/stats', {
-            headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        fetch('/admin/dashboard/stats', {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest'  // identifie la requête comme AJAX
+            }
         }).then(r => r.json()),
-        fetch('/api/commandes', {
-            headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+             fetch('/commandes', {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         }).then(r => r.json())
     ])
-    .then(([statsData, commandesData]) => {
+    .then(([statsData, commandesResponse]) => {
         const stats = statsData.data || statsData;
-        const commandes = commandesData.data || commandesData;
-        
-        // Calculer les stats des commandes
-        const totalCommandes = commandes.length || 0;
-        const commandesLivrees = commandes.filter(c => c.statut === 'livree').length;
+
+        // ✅ Correction : extraire le tableau depuis la réponse paginée
+        const commandes = Array.isArray(commandesResponse)
+            ? commandesResponse
+            : (commandesResponse.data || []);   // ← Laravel paginate retourne {data:[...]}
+
+        const totalCommandes     = commandes.length;
+        const commandesLivrees   = commandes.filter(c => c.statut === 'livree').length;
         const commandesEnAttente = commandes.filter(c => c.statut === 'en_attente').length;
-        
+
         const content = `
         <div class="main-header">
             <div class="d-flex justify-content-between align-items-center">
