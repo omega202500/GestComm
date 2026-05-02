@@ -26,6 +26,23 @@ class VersementController extends Controller
     {
         //
     }
+    public function count()
+    {
+        return response()->json([
+            'success' => true,
+            'count'   => \App\Models\Versement::count(),
+        ]);
+    }
+    
+    public function stats()
+    {
+        return response()->json([
+            'success'    => true,
+            'total'      => \App\Models\Versement::sum('montant'),
+            'valides'    => \App\Models\Versement::where('statut', 'valide')->count(),
+            'en_attente' => \App\Models\Versement::where('statut', 'en_attente')->count(),
+        ]);
+    }
 
     /**
      * Store a newly created resource in storage.
