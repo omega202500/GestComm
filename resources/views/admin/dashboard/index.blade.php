@@ -1674,6 +1674,12 @@ function navigateTo(page) {
         case 'dashboard':
             loadDashboard();
             break;
+        case 'commandes':     // ← AJOUTER CE CAS
+            loadCommandes();
+            break;
+        case 'ventes':        // ← AJOUTER CE CAS
+            loadVentes();
+            break;
         case 'settings':
             loadSettings();
             break;
@@ -1687,15 +1693,140 @@ function navigateTo(page) {
             loadActivites();
             break;
         case 'users':
-            loadUsers();  // ← Ajoutez cette ligne
+            loadUsers();
+            break;
+        case 'clients':
+            loadClients();
+            break;
+        case 'versements':
+            loadVersements();
+            break;
+        case 'rapports':
+            loadRapports();
             break;
         default:
             loadPlaceholderPage(page);
             break;
-        case 'clients':
-        loadClients();
-        break;
+    }
+}
+function loadCommandes() {
+    // Afficher un loader
+    document.getElementById('main-content').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-3">Chargement des commandes...</p>
+        </div>
+    `;
+
+    // Charger la page via AJAX
+    fetch('/commandes', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
         }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('main-content').innerHTML = html;
+        
+        // Réinitialiser les traductions
+        const savedLang = localStorage.getItem('language') || 'fr';
+        updateUILanguage(savedLang);
+        
+        // Initialiser les événements spécifiques aux commandes
+        initCommandesEvents();
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        document.getElementById('main-content').innerHTML = `
+            <div class="alert alert-danger m-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur lors du chargement des commandes.
+                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadCommandes()">Réessayer</button>
+            </div>
+        `;
+    });
+}
+
+function initCommandesEvents() {
+    // Initialiser les événements pour les commandes
+    // (filtres, actions, etc.)
+}
+function loadVentes() {
+    // Afficher un loader
+    document.getElementById('main-content').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-3">Chargement des ventes...</p>
+        </div>
+    `;
+
+    // Charger la page via AJAX
+    fetch('/ventes', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('main-content').innerHTML = html;
+        
+        // Réinitialiser les traductions
+        const savedLang = localStorage.getItem('language') || 'fr';
+        updateUILanguage(savedLang);
+        
+        // Initialiser les événements spécifiques aux ventes
+        initVentesEvents();
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        document.getElementById('main-content').innerHTML = `
+            <div class="alert alert-danger m-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur lors du chargement des ventes.
+                <button class="btn btn-sm btn-outline-danger ms-3" onclick="loadVentes()">Réessayer</button>
+            </div>
+        `;
+    });
+}
+
+function initVentesEvents() {
+    // Initialiser les événements pour les ventes
+    // (filtres, stats, etc.)
+}
+function loadVersements() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="main-header">
+            <h1 class="h3 fw-bold mb-1">
+                <i class="bi bi-wallet2 text-primary me-2"></i>
+                Gestion des Versements
+            </h1>
+            <p class="text-muted mb-0">Suivez tous les versements clients</p>
+        </div>
+        <div class="alert alert-info mt-4">
+            <i class="bi bi-info-circle me-2"></i>
+            Module de gestion des versements en cours de développement.
+        </div>
+    `;
+}
+
+function loadRapports() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="main-header">
+            <h1 class="h3 fw-bold mb-1">
+                <i class="bi bi-graph-up text-primary me-2"></i>
+                Rapports et Analyses
+            </h1>
+            <p class="text-muted mb-0">Analysez vos performances commerciales</p>
+        </div>
+        <div class="alert alert-info mt-4">
+            <i class="bi bi-info-circle me-2"></i>
+            Module de rapports en cours de développement.
+        </div>
+    `;
 }
 // ========== PRODUITS ==========
 function loadProduits() {
