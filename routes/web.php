@@ -48,6 +48,17 @@ Route::get('/session-test', function () {
         
         return response()->json(['success' => true, 'data' => $performances]);
     })->name('admin.performance.commerciaux');
+
+ Route::get('/api/commerciaux/liste', function () {
+        $commerciaux = App\Models\User::whereIn('role', ['terrain', 'commercial'])
+            ->select('id', 'nom', 'telephone', 'email')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $commerciaux
+        ]);
+    });
     
     Route::get('/clients', function () {
         $clients = Client::with('zone')
