@@ -2306,35 +2306,445 @@ function afficherModalDetails(item, type) {
     });
 }
 function loadVersements() {
-    document.getElementById('main-content').innerHTML = `
+    const container = document.getElementById('main-content');
+    
+    container.innerHTML = `
         <div class="main-header">
-            <h1 class="h3 fw-bold mb-1">
-                <i class="bi bi-wallet2 text-primary me-2"></i>
-                Gestion des Versements
-            </h1>
-            <p class="text-muted mb-0">Suivez tous les versements clients</p>
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-wallet2 text-primary me-2"></i>
+                    Gestion des Versements
+                </h1>
+                <p class="text-muted mb-0">Suivez tous les versements effectués par les clients</p>
+            </div>
         </div>
-        <div class="alert alert-info mt-4">
-            <i class="bi bi-info-circle me-2"></i>
-            Module de gestion des versements en cours de développement.
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" id="filtre_statut_versement">
+                            <option value="">Tous</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="valide">Validé</option>
+                            <option value="rejete">Rejeté</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut_versement">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin_versement">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="filtrerVersements()">
+                            <i class="bi bi-search me-1"></i> Filtrer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total versements</small>
+                        <h3 class="mb-0" id="versements_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Montant total</small>
+                        <h3 class="mb-0" id="versements_montant">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">En attente</small>
+                        <h3 class="mb-0" id="versements_attente">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des versements -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des versements</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Montant</th>
+                                <th>Date</th>
+                                <th>Mode</th>
+                                <th>Référence</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="versements-table-body">
+                            <tr><td colspan="9" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des versements...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     `;
+    
+    chargerVersements();
+}
+
+function chargerVersements(filtres = {}) {
+    const url = new URL('/versements', window.location.origin);
+    
+    if (filtres.statut) url.searchParams.append('statut', filtres.statut);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+    
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.data) {
+            const versements = data.data || [];
+            afficherVersements(versements);
+            mettreAJourStatsVersements(versements);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        const tbody = document.getElementById('versements-table-body');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Erreur de chargement</td></tr>`;
+        }
+    });
+}
+
+function afficherVersements(versements) {
+    const tbody = document.getElementById('versements-table-body');
+    if (!tbody) return;
+    
+    if (!versements || versements.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4">Aucun versement trouvé</td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = versements.map(v => `
+        <tr>
+            <td><strong>#${v.id}</strong></td>
+            <td>${escapeHtml(v.client?.nom || '-')}<br>
+                <small>${escapeHtml(v.client?.telephone || '-')}</small>
+            </td>
+            <td>${escapeHtml(v.commercial?.nom || '-')}</td>
+            <td><strong class="text-success">${parseInt(v.montant || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>${formatDate(v.date_versement || v.created_at)}</td>
+            <td>${v.mode_paiement || '-'}</td>
+            <td><small>${v.reference || '-'}</small></td>
+            <td>${getStatutBadgeVersement(v.statut)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsVersement(${v.id})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        </table>
+    `).join('');
+}
+
+function mettreAJourStatsVersements(versements) {
+    const total = versements.length;
+    const montantTotal = versements.reduce((sum, v) => sum + parseInt(v.montant || 0), 0);
+    const enAttente = versements.filter(v => v.statut === 'en_attente').length;
+    
+    document.getElementById('versements_total').textContent = total;
+    document.getElementById('versements_montant').innerHTML = `${montantTotal.toLocaleString('fr-FR')} FCFA`;
+    document.getElementById('versements_attente').textContent = enAttente;
+}
+
+function getStatutBadgeVersement(statut) {
+    const badges = {
+        'en_attente': '<span class="badge bg-warning">⏳ En attente</span>',
+        'valide': '<span class="badge bg-success">✓ Validé</span>',
+        'rejete': '<span class="badge bg-danger">✗ Rejeté</span>'
+    };
+    return badges[statut] || `<span class="badge bg-secondary">${statut}</span>`;
+}
+
+function filtrerVersements() {
+    const statut = document.getElementById('filtre_statut_versement')?.value;
+    const date_debut = document.getElementById('filtre_date_debut_versement')?.value;
+    const date_fin = document.getElementById('filtre_date_fin_versement')?.value;
+    
+    chargerVersements({ statut, date_debut, date_fin });
+}
+
+function voirDetailsVersement(id) {
+    fetch(`/versements/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const versement = data.data;
+            alert(`Détails versement #${versement.id}\nClient: ${versement.client?.nom}\nMontant: ${versement.montant} FCFA\nStatut: ${versement.statut}`);
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
 }
 
 function loadRapports() {
-    document.getElementById('main-content').innerHTML = `
+    const container = document.getElementById('main-content');
+    
+    container.innerHTML = `
         <div class="main-header">
-            <h1 class="h3 fw-bold mb-1">
-                <i class="bi bi-graph-up text-primary me-2"></i>
-                Rapports et Analyses
-            </h1>
-            <p class="text-muted mb-0">Analysez vos performances commerciales</p>
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-graph-up text-primary me-2"></i>
+                    Rapports et Analyses
+                </h1>
+                <p class="text-muted mb-0">Analysez vos performances commerciales</p>
+            </div>
         </div>
-        <div class="alert alert-info mt-4">
-            <i class="bi bi-info-circle me-2"></i>
-            Module de rapports en cours de développement.
+
+        <!-- Sélecteur de période -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Période</label>
+                        <select class="form-select" id="rapport_periode" onchange="changerPeriodeRapport()">
+                            <option value="jour">Aujourd'hui</option>
+                            <option value="semaine">Cette semaine</option>
+                            <option value="mois" selected>Ce mois</option>
+                            <option value="annee">Cette année</option>
+                            <option value="personnalise">Personnalisée</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="date_debut_div" style="display:none;">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="rapport_date_debut">
+                    </div>
+                    <div class="col-md-3" id="date_fin_div" style="display:none;">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="rapport_date_fin">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="genererRapport()">
+                            <i class="bi bi-bar-chart me-1"></i> Générer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cartes de synthèse -->
+        <div class="row g-4 mb-4" id="rapport-cartes">
+            <div class="col-md-3">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Chiffre d'affaires</small>
+                        <h3 class="mb-0" id="rapport_ca">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Nombre de ventes</small>
+                        <h3 class="mb-0" id="rapport_ventes">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Commandes</small>
+                        <h3 class="mb-0" id="rapport_commandes">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Versements</small>
+                        <h3 class="mb-0" id="rapport_versements">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classement commerciaux -->
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Top commerciaux (CA)</h5>
+                    </div>
+                    <div class="card-body" id="top_commerciaux">
+                        <div class="text-center py-3">Sélectionnez une période</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Top produits</h5>
+                    </div>
+                    <div class="card-body" id="top_produits">
+                        <div class="text-center py-3">Sélectionnez une période</div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
+    
+    // Écouter le changement de période personnalisée
+    document.getElementById('rapport_periode').addEventListener('change', function() {
+        const personnalise = this.value === 'personnalise';
+        document.getElementById('date_debut_div').style.display = personnalise ? 'block' : 'none';
+        document.getElementById('date_fin_div').style.display = personnalise ? 'block' : 'none';
+        if (!personnalise) genererRapport();
+    });
+    
+    // Générer le rapport initial
+    genererRapport();
+}
+
+function genererRapport() {
+    const periode = document.getElementById('rapport_periode').value;
+    let date_debut = null;
+    let date_fin = null;
+    
+    if (periode === 'personnalise') {
+        date_debut = document.getElementById('rapport_date_debut').value;
+        date_fin = document.getElementById('rapport_date_fin').value;
+        if (!date_debut || !date_fin) {
+            alert('Veuillez sélectionner les dates début et fin');
+            return;
+        }
+    }
+    
+    // Afficher loader
+    const loader = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
+    document.getElementById('top_commerciaux').innerHTML = loader;
+    document.getElementById('top_produits').innerHTML = loader;
+    
+    // Récupérer les statistiques
+    fetch('/admin/dashboard/stats', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.data || data) {
+            const stats = data.data || data;
+            document.getElementById('rapport_ca').innerHTML = `${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')} FCFA`;
+            document.getElementById('rapport_ventes').textContent = stats.nb_ventes || 0;
+            document.getElementById('rapport_commandes').textContent = stats.commandes?.total || 0;
+            document.getElementById('rapport_versements').textContent = stats.total_versements || 0;
+        }
+    })
+    .catch(error => console.error('Erreur stats:', error));
+    
+    // Charger le classement des commerciaux
+    fetch('/admin/performance/commerciaux', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            const topCommerciaux = [...data.data]
+                .sort((a, b) => (b.total_ventes || 0) - (a.total_ventes || 0))
+                .slice(0, 5);
+            
+            const html = topCommerciaux.map((c, index) => `
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                    <div>
+                        <span class="badge bg-${index === 0 ? 'warning' : index === 1 ? 'secondary' : index === 2 ? 'bronze' : 'primary'} me-2">
+                            ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index+1}`}
+                        </span>
+                        <strong>${escapeHtml(c.nom)}</strong>
+                        <small class="text-muted d-block">${c.role || 'Commercial'}</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-primary">${(c.total_ventes || 0).toLocaleString('fr-FR')} FCFA</strong>
+                        <small class="text-muted d-block">${c.total_commandes || 0} commandes</small>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('top_commerciaux').innerHTML = html || '<p class="text-center">Aucune donnée disponible</p>';
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        document.getElementById('top_commerciaux').innerHTML = '<p class="text-center text-danger">Erreur de chargement</p>';
+    });
+    
+    // Charger le top produits (à adapter selon votre API)
+    fetch('/produits?limit=5', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const produits = data.data || data || [];
+        const html = produits.slice(0, 5).map(p => `
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div>
+                    <strong>${escapeHtml(p.nom)}</strong>
+                    <small class="text-muted d-block">${p.categorie || 'Non catégorisé'}</small>
+                </div>
+                <div class="text-end">
+                    <strong class="text-success">${parseInt(p.prix_unitaire || 0).toLocaleString('fr-FR')} FCFA</strong>
+                    <small class="text-muted d-block">Stock: ${p.stock || 0}</small>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('top_produits').innerHTML = html || '<p class="text-center">Aucun produit trouvé</p>';
+    })
+    .catch(error => {
+        console.error('Erreur produits:', error);
+        document.getElementById('top_produits').innerHTML = '<p class="text-center text-danger">Erreur de chargement</p>';
+    });
+}
+
+function changerPeriodeRapport() {
+    genererRapport();
 }
 // ========== PRODUITS ==========
 function loadProduits() {
