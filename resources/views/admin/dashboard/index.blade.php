@@ -1600,50 +1600,42 @@ function updateBadges() {
             const el = document.getElementById(id);
             if (!el) return;
             el.textContent = count;
-            el.style.display = count > 0 ? 'display' : 'none';
+            el.style.display = count > 0 ? 'inline' : 'none';
         });
     }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
     function fetchCount(url, onSuccess) {
         fetch(url, {
             headers: {
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => { if (data.success) onSuccess(data.count); })
-        .catch(err => console.error('Badge fetch error', url, err));
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        // ✅ Accepter { count: N } OU { success: true, count: N }
+        .then(data => onSuccess(data.count || 0))
+        .catch(err => console.error('Badge error', url, err));
     }
 
-    // ── 1. Commandes en attente (données déjà dans stats) ────
-    const commandesEnAttente = stats.commandes?.en_attente || 0;
-    setBadge('commandes-badge', 'commandes-badge-mobile', commandesEnAttente);
+    // Commandes en attente (depuis stats déjà chargées)
+    setBadge('commandes-badge', 'commandes-badge-mobile',
+        stats?.commandes?.en_attente || 0);
 
-    // ── 2. Ventes du jour ────────────────────────────────────
-    fetchCount('/ventes/count', count =>
-        setBadge('ventes-badge', 'ventes-badge-mobile', count)
-    );
+    // Les autres via les routes web corrigées
+    fetchCount('/ventes/count',   count => setBadge('ventes-badge',     'ventes-badge-mobile',     count));
+    fetchCount('/produits/count', count => setBadge('produits-badge',   'produits-badge-mobile',   count));
+    fetchCount('/clients/count',  count => setBadge('clients-badge',    'clients-badge-mobile',    count));
 
-    // ── 3. Livraisons en cours ───────────────────────────────
+    // Livraisons depuis les données déjà chargées
     const livraisonsEnCours = livraisonsData.filter(l => l.statut === 'en_cours').length;
     setBadge('livraisons-badge', 'livraisons-badge-mobile', livraisonsEnCours);
 
-    // ── 4. Produits (route déjà existante) ───────────────────
-    fetchCount('/produits/count', count => {
-        setBadge('produits-badge', 'produits-badge-mobile', count);
-    });
-
-    // ── 5. Clients nouveaux aujourd'hui ──────────────────────
-    fetchCount('/clients/count', count =>
-        setBadge('clients-badge', 'clients-badge-mobile', count)
-    );
-
-    // ── 6. Versements en attente ─────────────────────────────
-    const versementsEnAttente = stats.versements?.en_attente || 0;
-    setBadge('versements-badge', 'versements-badge-mobile', versementsEnAttente);
-
-    // ── 7. Activités nouvelles ───────────────────────────────
     setBadge('activites-badge', 'activites-badge-mobile', newCount);
 }
 function setupEventListeners() {
