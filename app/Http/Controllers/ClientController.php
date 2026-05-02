@@ -16,13 +16,19 @@ class ClientController extends Controller
     {
         $this->clientService = $clientService;
     }
-
     public function index(Request $request)
     {
-        $clients = $this->clientService->getClientsAvecCommandes();
-
-        // Retourner toujours la vue HTML pour l'interface admin
-        // Le JSON est géré par les routes API (api/clients)
+        $clients = Client::with('zone')->latest()->get();
+        
+        // ✅ Si c'est une requête AJAX ou demande JSON
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'data' => $clients->take(5) // Limitez à 5 pour le dashboard
+            ]);
+        }
+        
+        // Pour l'affichage normal de la page clients
         return view('clients.index', compact('clients'));
     }
 
