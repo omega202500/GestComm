@@ -2133,21 +2133,33 @@ function loadVentes() {
 }
 
 function chargerCommerciaux() {
-    fetch('/users?role=terrain', {
+    // Utiliser le nouvel endpoint
+    fetch('/api/commerciaux/liste', {
         headers: {
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const select = document.getElementById('filtre_commercial');
-        if (select && data.data) {
-            select.innerHTML = '<option value="">Tous</option>' + 
-                data.data.map(user => `<option value="${user.id}">${escapeHtml(user.nom)}</option>`).join('');
+        if (select && data.success && data.data) {
+            select.innerHTML = '<option value="">Tous les commerciaux</option>' + 
+                data.data.map(user => 
+                    `<option value="${user.id}">${escapeHtml(user.nom)}</option>`
+                ).join('');
         }
     })
-    .catch(error => console.error('Erreur chargement commerciaux:', error));
+    .catch(error => {
+        console.error('Erreur chargement commerciaux:', error);
+        // Option silencieuse - le filtre reste vide mais fonctionne
+    });
 }
 
 function chargerVentes(filtres = {}) {
