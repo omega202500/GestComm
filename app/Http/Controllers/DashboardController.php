@@ -86,14 +86,17 @@ class DashboardController extends Controller
         ));
     }
 
-    public function stats(Request $request)
-    {
-        $periode = $request->get('periode', 'mois');
-        $stats = $this->dashboardService->getDashboardStats($periode);
+// retour des stats
+public function stats(Request $request)
+{
+    $stats = [
+        'chiffre_affaires'      => Commande::where('statut', 'livree')->sum('montant_total'),
+        'total_commandes'       => Commande::count(),
+        'commandes_en_attente'  => Commande::where('statut', 'en_attente')->count(),
+        'commandes_en_cours'    => Commande::where('statut', 'en_cours')->count(),
+        'commandes_livrees'     => Commande::where('statut', 'livree')->count(),
+    ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $stats
-        ]);
-    }
+    return response()->json(['success' => true, 'data' => $stats]);
+}
 }
