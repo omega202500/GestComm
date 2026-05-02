@@ -67,13 +67,18 @@ Route::put('/ventes/{id}', [VenteController::class, 'update'])->name('ventes.upd
 Route::delete('/ventes/{id}', [VenteController::class, 'destroy'])->name('ventes.destroy');
 Route::get('/ventes/count', [VenteController::class, 'count']);
 
-// -------- CLIENTS --------
-Route::resource('clients', ClientController::class);
-Route::get('/clients/count', [ClientController::class, 'count']);
-
-// -------- PRODUITS --------
-Route::resource('produits', ProduitController::class);
+// ✅ APRÈS (count AVANT le resource)
 Route::get('/produits/count', [ProduitController::class, 'count'])->name('produits.count');
+Route::resource('produits', ProduitController::class);
+
+Route::get('/ventes/count', [VenteController::class, 'count'])->name('ventes.count');
+Route::resource('ventes', VenteController::class); // si vous en avez un
+
+Route::get('/clients/count', [ClientController::class, 'count'])->name('clients.count');
+Route::resource('clients', ClientController::class);
+
+Route::get('/commandes/count', [CommandeController::class, 'count'])->name('commandes.count');
+Route::resource('commandes', CommandeController::class); // idem
 
 // -------- VERSEMENTS --------
 Route::get('/versements', [VersementController::class, 'index'])->name('versements.index');
