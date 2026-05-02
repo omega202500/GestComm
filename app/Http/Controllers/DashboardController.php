@@ -2,101 +2,131 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\DashboardService;
-use App\Services\ActivityService;
-use App\Models\Livraison;
-use App\Models\User;  // ← Utiliser User au lieu de Terrain et Chauffeur
 use App\Models\Commande;
+use App\Models\Vente;
+use App\Models\Versement;
+use App\Models\Client;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    protected $dashboardService;
-    protected $activityService;
-
-    public function __construct(
-        DashboardService $dashboardService,
-        ActivityService $activityService
-    ) {
-        $this->dashboardService = $dashboardService;
-        $this->activityService = $activityService;
-    }
-
     public function index(Request $request)
     {
-        $periode = $request->get('periode', 'mois');
-        $stats = $this->dashboardService->getDashboardStats($periode);
-        $newCount = $this->dashboardService->countNewActivities();
-        $activities = $this->dashboardService->getRecentActivities(10);
+        $stats      = $this->buildStats();
+        $activities = \App\Models\Activity::with('user')
+                        ->orderBy('created_at', 'desc')
+                        ->limit(20)->get();
+        $newCount   = \App\Models\Activity::where('status', 'pending')->count();
+        $periode    = $request->get('periode', 'mois');
 
-        // Récupérer les livraisons depuis la base de données
-        $livraisons = Livraison::with(['commande.client', 'chauffeur', 'terrain'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function($livraison) {
-                return [
-                    'id' => $livraison->id,
-                    'commande_id' => $livraison->commande->id ?? 'N/A',
-                    'client_nom' => $livraison->commande->client->nom ?? 'Client inconnu',
-                    'terrain_nom' => $livraison->terrain->nom ?? 'Terrain inconnu',  // terrain est un User avec rôle 'terrain'
-                    'chauffeur_nom' => $livraison->chauffeur->nom ?? 'Chauffeur inconnu', // chauffeur est un User avec rôle 'chauffeur'
-                    'date_livraison' => $livraison->date_livraison,
-                    'statut' => $livraison->statut,
-                    'notes' => $livraison->notes
-                ];
-            });
+        // Données pour la page (livraisons, terrains, chauffeurs, commandes)
+        $livraisons = \App\Models\Livraison::with(['commande.client','terrain','chauffeur'])
+                        ->orderBy('created_at','desc')->get()
+                        ->map(fn($l) => [
+                            'id'             => $l->id,
+                            'commande_numero'=> $l->commande->numero ?? 'N/A',
+                            'client_nom'     => $l->commande->client->nom ?? 'Inconnu',
+                            'terrain_nom'    => $l->terrain->nom ?? 'N/A',
+                            'chauffeur_nom'  => $l->chauffeur->nom ?? 'N/A',
+                            'date_livraison' => $l->date_livraison,
+                            'statut'         => $l->statut,
+                            'commande_id'    => $l->commande_id,
+                            'terrain_id'     => $l->terrain_id,
+                            'chauffeur_id'   => $l->chauffeur_id,
+                            'notes'          => $l->notes,
+                        ]);
 
-        // Récupérer les terrains (utilisateurs avec rôle 'terrain')
-        $terrains = User::where('role', 'terrain')
-            ->where('statut', true)
-            ->select('id', 'nom')
-            ->orderBy('nom')
-            ->get();
+        $terrains   = User::where('role', 'terrain')->get(['id','nom']);
+        $chauffeurs = User::where('role', 'chauffeur')->get(['id','nom']);
+        $commandes  = Commande::with('client')->orderBy('created_at','desc')->get()
+                        ->map(fn($c) => [
+                            'id'     => $c->id,
+                            'numero' => $c->numero ?? 'CMD-'.$c->id,
+                            'client' => $c->client->nom ?? 'Client inconnu',
+                            'statut' => $c->statut,
+                        ]);
+        $produits   = \App\Models\Produit::all();
 
-        // Récupérer les chauffeurs (utilisateurs avec rôle 'chauffeur')
-        $chauffeurs = User::where('role', 'chauffeur')
-            ->where('statut', true)
-            ->select('id', 'nom')
-            ->orderBy('nom')
-            ->get();
-
-        // Récupérer les commandes pour les formulaires
-        $commandes = Commande::with('client')
-             ->select('id', 'client_id')
-            ->orderBy('created_at', 'desc')
-            ->limit(100)
-            ->get()
-            ->map(function ($commande) {
-                return [
-                    'id' => $commande->id,
-                    'numero' => $commande->id,
-                    'client' => $commande->client->nom ?? 'Client inconnu'
-                ];
-            });
-
-        return view('admin.dashboard.index', compact(
-            'stats',
-            'periode',
-            'newCount',
-            'activities',
-            'livraisons',
-            'terrains',
-            'chauffeurs',
-            'commandes'
+        return view('dashboard', compact(
+            'stats','activities','newCount','periode',
+            'livraisons','terrains','chauffeurs','commandes','produits'
         ));
     }
 
-// retour des stats
-public function stats(Request $request)
-{
-    $stats = [
-        'chiffre_affaires'      => Commande::where('statut', 'livree')->sum('montant_total'),
-        'total_commandes'       => Commande::count(),
-        'commandes_en_attente'  => Commande::where('statut', 'en_attente')->count(),
-        'commandes_en_cours'    => Commande::where('statut', 'en_cours')->count(),
-        'commandes_livrees'     => Commande::where('statut', 'livree')->count(),
-    ];
+    // Route /admin/dashboard/stats — appelée en AJAX par le dashboard
+    public function stats(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data'    => $this->buildStats(),
+        ]);
+    }
 
-    return response()->json(['success' => true, 'data' => $stats]);
-}
+    private function buildStats(): array
+    {
+        // Ventes
+        $totalVentes  = 0;
+        $nbVentes     = 0;
+        $ventesAujourdhui = 0;
+
+        if (class_exists(\App\Models\Vente::class) && \Schema::hasTable('ventes')) {
+            $totalVentes      = \App\Models\Vente::sum('montant_total') ?? 0;
+            $nbVentes         = \App\Models\Vente::count();
+            $ventesAujourdhui = \App\Models\Vente::whereDate('created_at', today())->sum('montant_total') ?? 0;
+        }
+
+        // Versements
+        $totalVersements   = 0;
+        $versementsValides = 0;
+        $versementsAttente = 0;
+
+        if (class_exists(\App\Models\Versement::class) && \Schema::hasTable('versements')) {
+            $totalVersements   = \App\Models\Versement::sum('montant') ?? 0;
+            $versementsValides = \App\Models\Versement::where('statut', 'valide')->count();
+            $versementsAttente = \App\Models\Versement::where('statut', 'en_attente')->count();
+        }
+
+        // Commandes
+        $chiffreAffaires = Commande::where('statut', 'livree')->sum('montant_total') ?? 0;
+
+        // Clients
+        $totalClients = Client::count();
+        $clientsAujourdhui = Client::whereDate('created_at', today())->count();
+
+        // Performance commerciaux
+        $performance = User::whereIn('role', ['terrain', 'chauffeur', 'commercial'])
+            ->withCount(['commandes as total_commandes'])
+            ->get()
+            ->map(fn($u) => [
+                'id'                    => $u->id,
+                'nom'                   => $u->nom,
+                'role'                  => $u->role,
+                'total_commandes'       => $u->total_commandes,
+                'total_ventes'          => 0, // à implémenter selon votre modèle
+                'total_quantite_vendue' => 0,
+                'objectif'              => 500000,
+            ]);
+
+        return [
+            'chiffre_affaires'      => $chiffreAffaires,
+            'total_ventes'          => $totalVentes,
+            'nb_ventes'             => $nbVentes,
+            'ventes_aujourd_hui'    => $ventesAujourdhui,
+            'total_versements'      => $totalVersements,
+            'versements_valides'    => $versementsValides,
+            'versements_en_attente' => $versementsAttente,
+            'total_clients'         => $totalClients,
+            'clients_aujourd_hui'   => $clientsAujourdhui,
+            'performance'           => $performance,
+            'commandes'             => [
+                'total'      => Commande::count(),
+                'en_attente' => Commande::where('statut','en_attente')->count(),
+                'en_cours'   => Commande::where('statut','en_cours')->count(),
+                'livrees'    => Commande::where('statut','livree')->count(),
+                'annulees'   => Commande::where('statut','annulee')->count(),
+            ],
+        ];
+    }
 }
