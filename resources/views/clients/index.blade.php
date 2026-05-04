@@ -5,44 +5,32 @@
     <div class="main-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-people text-primary me-2"></i>
-                    <span data-translate="clients_title">Gestion des Clients</span>
-                </h1>
-                <p class="text-muted mb-0" data-translate="clients_subtitle">Liste et gestion de tous les clients</p>
+                <h1 class="h3 fw-bold mb-1">Gestion des Clients</h1>
+                <p class="text-muted mb-0">Liste et gestion de tous les clients</p>
             </div>
             <a href="{{ route('clients.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                <span data-translate="add_client">Ajouter un client</span>
+                <i class="bi bi-plus-circle me-1"></i> Ajouter un client
             </a>
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i> <span data-translate="clients_list">Liste des clients</span></h5>
+            <h5 class="mb-0">Liste des clients</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-custom">
                     <thead>
                         <tr>
-                            <th data-translate="client_id">ID</th>
-                            <th data-translate="client_name">Nom</th>
-                            <th data-translate="client_phone">Téléphone</th>
-                            <th data-translate="client_adresse">Adresse</th>
-                            <th data-translate="client_zone">Zone</th>
-                            <th data-translate="client_orders">Commandes</th>
-                            <th data-translate="client_balance">Solde</th>
-                            <th data-translate="created_at">Date création</th>
-                            <th data-translate="actions">Actions</th>
+                            <th>ID</th>
+                            <th>Nom</th>
+                            <th>Téléphone</th>
+                            <th>Zone</th>
+                            <th>Commandes</th>
+                            <th>Solde</th>
+                            <th>Date création</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -51,11 +39,8 @@
                             <td>{{ $client->id }}</td>
                             <td><strong>{{ $client->nom }}</strong></td>
                             <td>{{ $client->telephone ?? '-' }}</td>
-                            <td>{{ $client->adresse ?? '-' }}</td>
                             <td>{{ $client->zone->nom ?? '-' }}</td>
-                            <td>
-                                <span class="badge bg-info">{{ $client->commandes_count ?? 0 }}</span>
-                            </td>
+                            <td><span class="badge bg-info">{{ $client->commandes_count ?? 0 }}</span></td>
                             <td>
                                 @if(($client->solde ?? 0) > 0)
                                     <span class="badge bg-warning">{{ number_format($client->solde ?? 0, 0, ',', ' ') }} FCFA</span>
@@ -80,11 +65,8 @@
                         <tr>
                             <td colspan="8" class="text-center py-5">
                                 <i class="bi bi-inbox text-muted fs-1"></i>
-                                <p class="text-muted mt-3" data-translate="no_clients">Aucun client enregistré</p>
-                                <a href="{{ route('clients.create') }}" class="btn btn-primary mt-2">
-                                    <i class="bi bi-plus-circle me-1"></i>
-                                    <span data-translate="add_first_client">Ajouter un premier client</span>
-                                </a>
+                                <p class="text-muted mt-3">Aucun client enregistré</p>
+                                <a href="{{ route('clients.create') }}" class="btn btn-primary mt-2">Ajouter un premier client</a>
                             </td>
                         </tr>
                         @endforelse
