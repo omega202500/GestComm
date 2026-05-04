@@ -50,15 +50,25 @@
                             </td>
                             <td>{{ $client->created_at ? $client->created_at->format('d/m/Y') : '-' }}</td>
                             <td>
-                                <a href="{{ route('clients.show', $client->id) }}" class="btn btn-sm btn-info me-1" title="Voir">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('clients.edit', $client->id) }}" class="btn btn-sm btn-primary me-1" title="Modifier">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="deleteClient({{ $client->id }}, '{{ addslashes($client->nom) }}')" title="Supprimer">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                {{-- Boutons sur une ligne --}}
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <a href="{{ route('clients.show', $client->id) }}" 
+                                       class="btn btn-sm btn-info" title="Voir">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ route('clients.edit', $client->id) }}" 
+                                       class="btn btn-sm btn-primary" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger" 
+                                            data-client-id="{{ $client->id }}"
+                                            data-client-nom="{{ addslashes($client->nom) }}"
+                                            onclick="handleDeleteClient(this)"
+                                            title="Supprimer">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -66,7 +76,9 @@
                             <td colspan="8" class="text-center py-5">
                                 <i class="bi bi-inbox text-muted fs-1"></i>
                                 <p class="text-muted mt-3">Aucun client enregistré</p>
-                                <a href="{{ route('clients.create') }}" class="btn btn-primary mt-2">Ajouter un premier client</a>
+                                <a href="{{ route('clients.create') }}" class="btn btn-primary mt-2">
+                                    Ajouter un premier client
+                                </a>
                             </td>
                         </tr>
                         @endforelse
@@ -77,17 +89,63 @@
     </div>
 </div>
 
-<form id="delete-form" method="POST" style="display: none;">
+<form id="delete-client-form" method="POST" style="display: none;">
     @csrf
     @method('DELETE')
 </form>
 
 <script>
-function deleteClient(id, name) {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le client "${name}" ?`)) {
-        const form = document.getElementById('delete-form');
-        form.action = `/clients/${id}`;
-        form.submit();
+// Utiliser une fonction anonyme attachée après le chargement
+// pour éviter les conflits avec le dashboard parent
+document.addEventListener('DOMContentLoaded', function() {
+    // Rien ici, les boutons utilisent handleDeleteClient(this)
+});
+
+// Fonction nommée différemment pour éviter tout conflit
+function handleDeleteClient(btn) {
+    const id  = btn.getAttribute('data-client-id');
+    const nom = btn.getAttribute('data-client-nom');
+
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le client "${nom}" ?`)) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        fetch(`/clients/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: '_method=DELETE'
+        })
+        .then(response => {
+            if (response.ok || response.redirected) {
+                // Supprimer la ligne du tableau
+                btn.closest('tr').remove();
+
+                // Mettre à jour le badge clients dans la sidebar
+                const badges = ['clients-badge', 'clients-badge-mobile'];
+                badges.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const current = parseInt(el.textContent) || 0;
+                        const newCount = Math.max(0, current - 1);
+                        el.textContent = newCount;
+                        el.style.display = newCount > 0 ? 'inline' : 'none';
+                    }
+                });
+
+                // Notification si disponible dans le dashboard parent
+                if (typeof showNotification === 'function') {
+                    showNotification('Succès', `Client "${nom}" supprimé`, 'success');
+                }
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        })
+        .catch(err => {
+            console.error('Erreur:', err);
+            alert('Erreur lors de la suppression');
+        });
     }
 }
 </script>
