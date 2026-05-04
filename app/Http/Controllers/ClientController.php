@@ -99,6 +99,8 @@ class ClientController extends Controller
 
     public function count()
     {
-        return response()->json(['count' => Client::count()]);
+        return response()->json([
+                                'success' =>true,
+                                'count' => Client::count()]);
     }
 }
