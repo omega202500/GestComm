@@ -10,6 +10,8 @@ class VerifyCsrfToken extends Middleware
         'login',
         'logout',
         'admin/dashboard',
+        'admin/livraisons/*',
+
         'api/*',
         'users',        // Ajouté
         'users/*',     // Ajouté
