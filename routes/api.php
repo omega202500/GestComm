@@ -62,6 +62,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/clients/{id}', [ClientController::class, 'destroy']);
     Route::get('/clients/recherche', [ClientController::class, 'search']);
     Route::get('/clients/count', [ClientController::class, 'count']);
+    
+    Route::get('/commerciaux/liste', function() {
+    $commerciaux = \App\Models\User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])->get();
+    return response()->json([
+        'success' => true,
+        'data' => $commerciaux->map(function($user) {
+            return [
+                'id' => $user->id,
+                'nom' => $user->nom,
+                'role' => $user->role,
+                'telephone' => $user->telephone,
+                'email' => $user->email,
+                'statut' => $user->statut
+            ];
+        })
+    ]);
+})->middleware('auth:sanctum');
 
     // ======================
     // PRODUITS

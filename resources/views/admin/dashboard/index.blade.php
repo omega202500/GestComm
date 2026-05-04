@@ -1929,6 +1929,12 @@ function chargerCommandes(filtres = {}) {
         }
     });
 }
+function mettreAJourStats(data) {
+    const element = document.getElementById('stat-commandes');
+    if (element) {
+        element.textContent = data.total;
+    }
+}
 
 function afficherCommandes(commandes) {
     const tbody = document.getElementById('commandes-table-body');
@@ -3951,6 +3957,15 @@ function openEditLivraisonModal(id) {
             document.getElementById('notes').value = livraison.notes;
         }
     }, 100);
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
 
     // Ouvrir la modale
     const modal = new bootstrap.Modal(document.getElementById('livraisonModal'));
