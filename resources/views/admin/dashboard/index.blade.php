@@ -1212,10 +1212,10 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" data-page="produits" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
-                        <i class="bi bi-box"></i>
-                        <span data-translate="products">Produits</span>
-                        <span class="badge bg-warning badge-notification" id="produits-badge-mobile">0</span>
+                    <a class="nav-link" href="/clients?format=html">
+                        <i class="bi bi-people"></i>
+                        <span data-translate="clients">Clients</span>
+                        <span class="badge bg-warning badge-notification" id="clients-badge">0</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -1604,47 +1604,102 @@ function updateBadges() {
         });
     }
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
     function fetchCount(url, onSuccess) {
         fetch(url, {
             headers: {
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => { if (data.success) onSuccess(data.count); })
-        .catch(err => console.error('Badge fetch error', url, err));
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        // ✅ Accepter { count: N } OU { success: true, count: N }
+        .then(data => onSuccess(data.count || 0))
+        .catch(err => console.error('Badge error', url, err));
     }
 
-    // ── 1. Commandes en attente (données déjà dans stats) ────
-    const commandesEnAttente = stats.commandes?.en_attente || 0;
-    setBadge('commandes-badge', 'commandes-badge-mobile', commandesEnAttente);
+    // Commandes en attente (depuis stats déjà chargées)
+    setBadge('commandes-badge', 'commandes-badge-mobile',
+        stats?.commandes?.en_attente || 0);
 
-    // ── 2. Ventes du jour ────────────────────────────────────
-    fetchCount('/ventes/count', count =>
-        setBadge('ventes-badge', 'ventes-badge-mobile', count)
-    );
+    // Les autres via les routes web corrigées
+    fetchCount('/ventes/count',   count => setBadge('ventes-badge',     'ventes-badge-mobile',     count));
+    fetchCount('/produits/count', count => setBadge('produits-badge',   'produits-badge-mobile',   count));
+    fetchCount('/clients/count',  count => setBadge('clients-badge',    'clients-badge-mobile',    count));
 
-    // ── 3. Livraisons en cours ───────────────────────────────
+    // Livraisons depuis les données déjà chargées
     const livraisonsEnCours = livraisonsData.filter(l => l.statut === 'en_cours').length;
     setBadge('livraisons-badge', 'livraisons-badge-mobile', livraisonsEnCours);
 
-    // ── 4. Produits (route déjà existante) ───────────────────
-    fetchCount('/produits/count', count => {
-        setBadge('produits-badge', 'produits-badge-mobile', count);
-    });
-
-    // ── 5. Clients nouveaux aujourd'hui ──────────────────────
-    fetchCount('/clients/count', count =>
-        setBadge('clients-badge', 'clients-badge-mobile', count)
-    );
-
-    // ── 6. Versements en attente ─────────────────────────────
-    const versementsEnAttente = stats.versements?.en_attente || 0;
-    setBadge('versements-badge', 'versements-badge-mobile', versementsEnAttente);
-
-    // ── 7. Activités nouvelles ───────────────────────────────
     setBadge('activites-badge', 'activites-badge-mobile', newCount);
+}
+// ========== FONCTIONS UTILITAIRES POUR LES COMMANDES/VENTES ==========
+
+function getStatutBadge(statut) {
+    const badges = {
+        'en_attente': '<span class="badge bg-warning">⏳ En attente</span>',
+        'en_cours': '<span class="badge bg-info">🚚 En cours</span>',
+        'livree': '<span class="badge bg-success">✅ Livrée</span>',
+        'annulee': '<span class="badge bg-danger">❌ Annulée</span>',
+        'validee': '<span class="badge bg-success">✓ Validée</span>',
+        'payee': '<span class="badge bg-primary">💰 Payée</span>'
+    };
+    return badges[statut] || `<span class="badge bg-secondary">${statut}</span>`;
+}
+
+function getStatutLabel(statut) {
+    const labels = {
+        'en_attente': 'En attente',
+        'en_cours': 'En cours',
+        'livree': 'Livrée',
+        'annulee': 'Annulée',
+        'validee': 'Validée',
+        'payee': 'Payée'
+    };
+    return labels[statut] || statut;
+}
+
+function getStatutColor(statut) {
+    const colors = {
+        'en_attente': 'warning',
+        'en_cours': 'info',
+        'livree': 'success',
+        'annulee': 'danger',
+        'validee': 'success',
+        'payee': 'primary'
+    };
+    return colors[statut] || 'secondary';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch(e) {
+        return dateStr;
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 function setupEventListeners() {
     // Navigation
@@ -1682,6 +1737,12 @@ function navigateTo(page) {
         case 'dashboard':
             loadDashboard();
             break;
+        case 'commandes':     // ← AJOUTER CE CAS
+            loadCommandes();
+            break;
+        case 'ventes':        // ← AJOUTER CE CAS
+            loadVentes();
+            break;
         case 'settings':
             loadSettings();
             break;
@@ -1695,15 +1756,995 @@ function navigateTo(page) {
             loadActivites();
             break;
         case 'users':
-            loadUsers();  // ← Ajoutez cette ligne
+            loadUsers();
+            break;
+        case 'clients':
+            loadClients();
+            break;
+        case 'versements':
+            loadVersements();
+            break;
+        case 'rapports':
+            loadRapports();
             break;
         default:
             loadPlaceholderPage(page);
             break;
-        case 'clients':
-        loadClients();
-        break;
+    }
+}
+function loadCommandes() {
+    const container = document.getElementById('main-content');
+
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-cart text-primary me-2"></i>
+                    Commandes des Commerciaux
+                </h1>
+                <p class="text-muted mb-0">Liste des commandes enregistrées par l'application mobile</p>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" id="filtre_statut">
+                            <option value="">Tous</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="en_cours">En cours</option>
+                            <option value="livree">Livrée</option>
+                            <option value="annulee">Annulée</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="filtrerCommandes()">
+                            <i class="bi bi-search me-1"></i> Filtrer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4" id="commandes-stats">
+            <div class="col-md-3">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total commandes</small>
+                        <h3 class="mb-0" id="stat_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">En attente</small>
+                        <h3 class="mb-0" id="stat_attente">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Livrées</small>
+                        <h3 class="mb-0" id="stat_livrees">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Montant total</small>
+                        <h3 class="mb-0" id="stat_montant">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des commandes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des commandes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Téléphone</th>
+                                <th>Date commande</th>
+                                <th>Quantité</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commandes-table-body">
+                            <tr><td colspan="9" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des commandes...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Charger les commandes
+    chargerCommandes();
+}
+
+function chargerCommandes(filtres = {}) {
+    const url = new URL('/commandes', window.location.origin);
+
+    // Ajouter les filtres
+    if (filtres.statut) url.searchParams.append('statut', filtres.statut);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
         }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const commandes = data.data || [];
+            afficherCommandes(commandes);
+            mettreAJourStats(commandes);
+        } else {
+            throw new Error('Erreur chargement');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        const tbody = document.getElementById('commandes-table-body');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr><td colspan="9" class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <p class="mt-2">Erreur lors du chargement des commandes</p>
+                    <button class="btn btn-sm btn-primary" onclick="chargerCommandes()">Réessayer</button>
+                </td></tr>
+            `;
+        }
+    });
+}
+
+function afficherCommandes(commandes) {
+    const tbody = document.getElementById('commandes-table-body');
+    if (!tbody) return;
+
+    if (!commandes || commandes.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="mt-2 text-muted">Aucune commande trouvée</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = commandes.map(commande => {
+        // Déterminer le badge de statut
+        let badgeHtml = '';
+        switch(commande.statut) {
+            case 'en_attente':
+                badgeHtml = '<span class="badge bg-warning">⏳ En attente</span>';
+                break;
+            case 'en_cours':
+                badgeHtml = '<span class="badge bg-info">🚚 En cours</span>';
+                break;
+            case 'livree':
+                badgeHtml = '<span class="badge bg-success">✅ Livrée</span>';
+                break;
+            case 'annulee':
+                badgeHtml = '<span class="badge bg-danger">❌ Annulée</span>';
+                break;
+            default:
+                badgeHtml = `<span class="badge bg-secondary">${commande.statut}</span>`;
+        }
+
+        return `
+            <tr>
+                <td><strong>#${commande.id}</strong></td>
+                <td>
+                    ${escapeHtml(commande.client?.nom || '-')}<br>
+                    <small class="text-muted">${escapeHtml(commande.client?.adresse || '')}</small>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="commercial-avatar me-2" style="width: 30px; height: 30px; font-size: 14px;">
+                            ${(commande.commercial?.nom?.charAt(0) || 'C')}
+                        </div>
+                        ${escapeHtml(commande.commercial?.nom || '-')}
+                    </div>
+                </td>
+                <td>${escapeHtml(commande.client_tel || '-')}</td>
+                <td>${formatDate(commande.date_commande)}</td>
+                <td>${commande.total_quantite || 0}</td>
+                <td><strong>${parseInt(commande.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+                <td>${badgeHtml}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsCommande(${commande.id})" title="Voir détails">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+function mettreAJourStats(commandes) {
+    const total = commandes.length;
+    const enAttente = commandes.filter(c => c.statut === 'en_attente').length;
+    const livrees = commandes.filter(c => c.statut === 'livree').length;
+    const montantTotal = commandes.reduce((sum, c) => sum + parseInt(c.montant_total || 0), 0);
+
+    document.getElementById('stat_total').textContent = total;
+    document.getElementById('stat_attente').textContent = enAttente;
+    document.getElementById('stat_livrees').textContent = livrees;
+    document.getElementById('stat_montant').innerHTML = `${montantTotal.toLocaleString('fr-FR')} FCFA`;
+}
+
+function filtrerCommandes() {
+    const statut = document.getElementById('filtre_statut').value;
+    const date_debut = document.getElementById('filtre_date_debut').value;
+    const date_fin = document.getElementById('filtre_date_fin').value;
+
+    chargerCommandes({ statut, date_debut, date_fin });
+}
+
+function voirDetailsCommande(id) {
+    fetch(`/commandes/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const commande = data.data;
+            afficherModalDetails(commande, 'commande');
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+function loadVentes() {
+    const container = document.getElementById('main-content');
+
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-cash-coin text-primary me-2"></i>
+                    Ventes des Commerciaux
+                </h1>
+                <p class="text-muted mb-0">Historique des ventes enregistrées par l'application mobile</p>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Commercial</label>
+                        <select class="form-select" id="filtre_commercial">
+                            <option value="">Tous</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total ventes</small>
+                        <h3 class="mb-0" id="ventes_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Chiffre d'affaires</small>
+                        <h3 class="mb-0" id="ventes_ca">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Articles vendus</small>
+                        <h3 class="mb-0" id="ventes_articles">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des ventes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des ventes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Date vente</th>
+                                <th>Articles</th>
+                                <th>Montant</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ventes-table-body">
+                            <tr><td colspan="7" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des ventes...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Charger les commerciaux pour le filtre
+    chargerCommerciaux();
+    // Charger les ventes
+    chargerVentes();
+}
+
+function chargerCommerciaux() {
+    // Utiliser le nouvel endpoint
+    fetch('/api/commerciaux/liste', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        const select = document.getElementById('filtre_commercial');
+        if (select && data.success && data.data) {
+            select.innerHTML = '<option value="">Tous les commerciaux</option>' +
+                data.data.map(user =>
+                    `<option value="${user.id}">${escapeHtml(user.nom)}</option>`
+                ).join('');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur chargement commerciaux:', error);
+        // Option silencieuse - le filtre reste vide mais fonctionne
+    });
+}
+
+function chargerVentes(filtres = {}) {
+    const url = new URL('/ventes', window.location.origin);
+
+    if (filtres.commercial_id) url.searchParams.append('commercial_id', filtres.commercial_id);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.data) {
+            const ventes = data.data;
+            afficherVentes(ventes);
+            mettreAJourStatsVentes(ventes);
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+
+function afficherVentes(ventes) {
+    const tbody = document.getElementById('ventes-table-body');
+    if (!tbody) return;
+
+    if (!ventes || ventes.length === 0) {
+        tbody.innerHTML = '<td><td colspan="7" class="text-center py-4">Aucune vente trouvée</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = ventes.map(vente => `
+        <tr>
+            <td><strong>#${vente.id}</strong></td>
+            <td>${escapeHtml(vente.client?.nom || '-')}<br>
+                <small>${escapeHtml(vente.client?.telephone || '-')}</small>
+            </td>
+            <td>${escapeHtml(vente.commercial?.nom || '-')}</td>
+            <td>${formatDate(vente.created_at)}</td>
+            <td>${vente.total_quantite || 0}</td>
+            <td><strong class="text-success">${parseInt(vente.montant_total || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="voirDetailsVente(${vente.id})">
+                    <i class="bi bi-receipt"></i>
+                </button>
+             </td>
+        </tr>
+    `).join('');
+}
+
+function mettreAJourStatsVentes(ventes) {
+    const total = ventes.length;
+    const ca = ventes.reduce((sum, v) => sum + parseInt(v.montant_total || 0), 0);
+    const articles = ventes.reduce((sum, v) => sum + (v.total_quantite || 0), 0);
+
+    document.getElementById('ventes_total').textContent = total;
+    document.getElementById('ventes_ca').innerHTML = `${ca.toLocaleString('fr-FR')} FCFA`;
+    document.getElementById('ventes_articles').textContent = articles;
+}
+
+function voirDetailsVente(id) {
+    fetch(`/ventes/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            afficherModalDetails(data.data, 'vente');
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+
+function afficherModalDetails(item, type) {
+    // Créer le modal dynamiquement
+    const modalHtml = `
+        <div class="modal fade" id="detailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-${type === 'commande' ? 'cart' : 'cash-stack'} me-2"></i>
+                            Détails de la ${type === 'commande' ? 'commande' : 'vente'} #${item.id}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Client :</strong>
+                                <p>${escapeHtml(item.client?.nom || '-')}<br>
+                                <small>Tel: ${escapeHtml(item.client?.telephone || '-')}</small><br>
+                                <small>Adresse: ${escapeHtml(item.client?.adresse || '-')}</small></p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Commercial :</strong>
+                                <p>${escapeHtml(item.commercial?.nom || '-')}<br>
+                                <small>Tel: ${escapeHtml(item.commercial?.telephone || '-')}</small></p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Date :</strong>
+                                <p>${formatDate(item.date_commande || item.created_at)}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Statut :</strong>
+                                <p>${getStatutBadge(item.statut)}</p>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <h6>Détails de la commande</h6>
+                                <p>Quantité totale: ${item.total_quantite || 0} articles</p>
+                                <p class="h4 text-primary">Montant total: ${parseInt(item.montant_total || 0).toLocaleString('fr-FR')} FCFA</p>
+                                ${item.notes ? `<p><strong>Notes:</strong> ${escapeHtml(item.notes)}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Supprimer l'ancien modal s'il existe
+    const oldModal = document.getElementById('detailsModal');
+    if (oldModal) oldModal.remove();
+
+    // Ajouter et afficher le nouveau modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+
+    // Nettoyer après fermeture
+    document.getElementById('detailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+function loadVersements() {
+    const container = document.getElementById('main-content');
+
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-wallet2 text-primary me-2"></i>
+                    Gestion des Versements
+                </h1>
+                <p class="text-muted mb-0">Suivez tous les versements effectués par les clients</p>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" id="filtre_statut_versement">
+                            <option value="">Tous</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="valide">Validé</option>
+                            <option value="rejete">Rejeté</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="filtre_date_debut_versement">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="filtre_date_fin_versement">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="filtrerVersements()">
+                            <i class="bi bi-search me-1"></i> Filtrer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Total versements</small>
+                        <h3 class="mb-0" id="versements_total">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Montant total</small>
+                        <h3 class="mb-0" id="versements_montant">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">En attente</small>
+                        <h3 class="mb-0" id="versements_attente">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des versements -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Liste des versements</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client</th>
+                                <th>Commercial</th>
+                                <th>Montant</th>
+                                <th>Date</th>
+                                <th>Mode</th>
+                                <th>Référence</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="versements-table-body">
+                            <tr><td colspan="9" class="text-center py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Chargement des versements...</p>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    chargerVersements();
+}
+
+function chargerVersements(filtres = {}) {
+    const url = new URL('/versements', window.location.origin);
+
+    if (filtres.statut) url.searchParams.append('statut', filtres.statut);
+    if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
+    if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
+
+    fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success || data.data) {
+            const versements = data.data || [];
+            afficherVersements(versements);
+            mettreAJourStatsVersements(versements);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        const tbody = document.getElementById('versements-table-body');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Erreur de chargement</td></tr>`;
+        }
+    });
+}
+
+function afficherVersements(versements) {
+    const tbody = document.getElementById('versements-table-body');
+    if (!tbody) return;
+
+    if (!versements || versements.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4">Aucun versement trouvé</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = versements.map(v => `
+        <tr>
+            <td><strong>#${v.id}</strong></td>
+            <td>${escapeHtml(v.client?.nom || '-')}<br>
+                <small>${escapeHtml(v.client?.telephone || '-')}</small>
+            </td>
+            <td>${escapeHtml(v.commercial?.nom || '-')}</td>
+            <td><strong class="text-success">${parseInt(v.montant || 0).toLocaleString('fr-FR')} FCFA</strong></td>
+            <td>${formatDate(v.date_versement || v.created_at)}</td>
+            <td>${v.mode_paiement || '-'}</td>
+            <td><small>${v.reference || '-'}</small></td>
+            <td>${getStatutBadgeVersement(v.statut)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="voirDetailsVersement(${v.id})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        </table>
+    `).join('');
+}
+
+function mettreAJourStatsVersements(versements) {
+    const total = versements.length;
+    const montantTotal = versements.reduce((sum, v) => sum + parseInt(v.montant || 0), 0);
+    const enAttente = versements.filter(v => v.statut === 'en_attente').length;
+
+    document.getElementById('versements_total').textContent = total;
+    document.getElementById('versements_montant').innerHTML = `${montantTotal.toLocaleString('fr-FR')} FCFA`;
+    document.getElementById('versements_attente').textContent = enAttente;
+}
+
+function getStatutBadgeVersement(statut) {
+    const badges = {
+        'en_attente': '<span class="badge bg-warning">⏳ En attente</span>',
+        'valide': '<span class="badge bg-success">✓ Validé</span>',
+        'rejete': '<span class="badge bg-danger">✗ Rejeté</span>'
+    };
+    return badges[statut] || `<span class="badge bg-secondary">${statut}</span>`;
+}
+
+function filtrerVersements() {
+    const statut = document.getElementById('filtre_statut_versement')?.value;
+    const date_debut = document.getElementById('filtre_date_debut_versement')?.value;
+    const date_fin = document.getElementById('filtre_date_fin_versement')?.value;
+
+    chargerVersements({ statut, date_debut, date_fin });
+}
+
+function voirDetailsVersement(id) {
+    fetch(`/versements/${id}`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const versement = data.data;
+            alert(`Détails versement #${versement.id}\nClient: ${versement.client?.nom}\nMontant: ${versement.montant} FCFA\nStatut: ${versement.statut}`);
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+}
+
+function loadRapports() {
+    const container = document.getElementById('main-content');
+
+    container.innerHTML = `
+        <div class="main-header">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-graph-up text-primary me-2"></i>
+                    Rapports et Analyses
+                </h1>
+                <p class="text-muted mb-0">Analysez vos performances commerciales</p>
+            </div>
+        </div>
+
+        <!-- Sélecteur de période -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Période</label>
+                        <select class="form-select" id="rapport_periode" onchange="changerPeriodeRapport()">
+                            <option value="jour">Aujourd'hui</option>
+                            <option value="semaine">Cette semaine</option>
+                            <option value="mois" selected>Ce mois</option>
+                            <option value="annee">Cette année</option>
+                            <option value="personnalise">Personnalisée</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="date_debut_div" style="display:none;">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="rapport_date_debut">
+                    </div>
+                    <div class="col-md-3" id="date_fin_div" style="display:none;">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="rapport_date_fin">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="genererRapport()">
+                            <i class="bi bi-bar-chart me-1"></i> Générer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cartes de synthèse -->
+        <div class="row g-4 mb-4" id="rapport-cartes">
+            <div class="col-md-3">
+                <div class="stat-card border-primary">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Chiffre d'affaires</small>
+                        <h3 class="mb-0" id="rapport_ca">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-success">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Nombre de ventes</small>
+                        <h3 class="mb-0" id="rapport_ventes">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-info">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Commandes</small>
+                        <h3 class="mb-0" id="rapport_commandes">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card border-warning">
+                    <div class="card-body p-3">
+                        <small class="text-muted">Versements</small>
+                        <h3 class="mb-0" id="rapport_versements">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classement commerciaux -->
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Top commerciaux (CA)</h5>
+                    </div>
+                    <div class="card-body" id="top_commerciaux">
+                        <div class="text-center py-3">Sélectionnez une période</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Top produits</h5>
+                    </div>
+                    <div class="card-body" id="top_produits">
+                        <div class="text-center py-3">Sélectionnez une période</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Écouter le changement de période personnalisée
+    document.getElementById('rapport_periode').addEventListener('change', function() {
+        const personnalise = this.value === 'personnalise';
+        document.getElementById('date_debut_div').style.display = personnalise ? 'block' : 'none';
+        document.getElementById('date_fin_div').style.display = personnalise ? 'block' : 'none';
+        if (!personnalise) genererRapport();
+    });
+
+    // Générer le rapport initial
+    genererRapport();
+}
+
+function genererRapport() {
+    const periode = document.getElementById('rapport_periode').value;
+    let date_debut = null;
+    let date_fin = null;
+
+    if (periode === 'personnalise') {
+        date_debut = document.getElementById('rapport_date_debut').value;
+        date_fin = document.getElementById('rapport_date_fin').value;
+        if (!date_debut || !date_fin) {
+            alert('Veuillez sélectionner les dates début et fin');
+            return;
+        }
+    }
+
+    // Afficher loader
+    const loader = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
+    document.getElementById('top_commerciaux').innerHTML = loader;
+    document.getElementById('top_produits').innerHTML = loader;
+
+    // Récupérer les statistiques
+    fetch('/admin/dashboard/stats', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.data || data) {
+            const stats = data.data || data;
+            document.getElementById('rapport_ca').innerHTML = `${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')} FCFA`;
+            document.getElementById('rapport_ventes').textContent = stats.nb_ventes || 0;
+            document.getElementById('rapport_commandes').textContent = stats.commandes?.total || 0;
+            document.getElementById('rapport_versements').textContent = stats.total_versements || 0;
+        }
+    })
+    .catch(error => console.error('Erreur stats:', error));
+
+    // Charger le classement des commerciaux
+    fetch('/admin/performance/commerciaux', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            const topCommerciaux = [...data.data]
+                .sort((a, b) => (b.total_ventes || 0) - (a.total_ventes || 0))
+                .slice(0, 5);
+
+            const html = topCommerciaux.map((c, index) => `
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                    <div>
+                        <span class="badge bg-${index === 0 ? 'warning' : index === 1 ? 'secondary' : index === 2 ? 'bronze' : 'primary'} me-2">
+                            ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index+1}`}
+                        </span>
+                        <strong>${escapeHtml(c.nom)}</strong>
+                        <small class="text-muted d-block">${c.role || 'Commercial'}</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-primary">${(c.total_ventes || 0).toLocaleString('fr-FR')} FCFA</strong>
+                        <small class="text-muted d-block">${c.total_commandes || 0} commandes</small>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('top_commerciaux').innerHTML = html || '<p class="text-center">Aucune donnée disponible</p>';
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        document.getElementById('top_commerciaux').innerHTML = '<p class="text-center text-danger">Erreur de chargement</p>';
+    });
+
+    // Charger le top produits (à adapter selon votre API)
+    fetch('/produits?limit=5', {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const produits = data.data || data || [];
+        const html = produits.slice(0, 5).map(p => `
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div>
+                    <strong>${escapeHtml(p.nom)}</strong>
+                    <small class="text-muted d-block">${p.categorie || 'Non catégorisé'}</small>
+                </div>
+                <div class="text-end">
+                    <strong class="text-success">${parseInt(p.prix_unitaire || 0).toLocaleString('fr-FR')} FCFA</strong>
+                    <small class="text-muted d-block">Stock: ${p.stock || 0}</small>
+                </div>
+            </div>
+        `).join('');
+
+        document.getElementById('top_produits').innerHTML = html || '<p class="text-center">Aucun produit trouvé</p>';
+    })
+    .catch(error => {
+        console.error('Erreur produits:', error);
+        document.getElementById('top_produits').innerHTML = '<p class="text-center text-danger">Erreur de chargement</p>';
+    });
+}
+
+function changerPeriodeRapport() {
+    genererRapport();
 }
 // ========== PRODUITS ==========
 function loadProduits() {
@@ -2103,153 +3144,455 @@ function deleteProduct(id) {
         }
 
 // ========== DASHBOARD ==========
+
 function loadDashboard() {
     const dashboardPage = document.getElementById('main-content');
     if (!dashboardPage) return;
 
-    const content = `
-    <div class="main-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-speedometer2 text-primary me-2"></i>
-                    <span data-translate="dashboard_title">Tableau de bord Administrateur</span>
-                </h1>
-                <p class="text-muted mb-0" data-translate="dashboard_subtitle">Vue d\'ensemble de votre activité commerciale</p>
-            </div>
-            <div class="dropdown">
-                <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">A</div>
-                    <span id="user-name" class="fw-bold">Admin</span>
-                    <i class="bi bi-person-circle fs-4"></i>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end mt-2">
-                    <li class="px-3 py-2 bg-light">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-size: 18px;">A</div>
-                            <div>
-                                <h6 class="mb-0 fw-semibold">Admin</h6>
-                                <small class="text-muted">admin@gestcomm.com</small>
-                            </div>
-                        </div>
-                    </li>
-                    <li><hr class="dropdown-divider m-0"></li>
-                    <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i> Mon Profil</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal()"><i class="bi bi-lock me-2"></i> Changer Mot de Passe</a></li>
-                    <li><hr class="dropdown-divider m-0"></li>
-                    <li>
-                        <form method="POST" action="/logout" id="logout-form" style="display: none;">
-                            <input type="hidden" name="_token" value="' + document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content') + '">
-                        </form>
-                        <a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); document.getElementById(\'logout-form\').submit();"><i class="bi bi-box-arrow-right me-2"></i> Déconnexion</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
+    dashboardPage.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Chargement du tableau de bord...</p>
+        </div>`;
 
-    <div class="row g-4 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-primary h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
-                            <p class="text-muted mb-1">CHIFFRE D\'AFFAIRES</p>
-                            <h2 class="stat-number">${(stats.chiffre_affaires || 0).toLocaleString('fr-FR')}<small class="fs-6 text-muted">FCFA</small></h2>
-                        </div>
-                        <div class="text-end"><small class="text-muted"><i class="bi bi-calendar-event"></i> ${getPeriodeLabel(periode)}</small></div>
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const ajaxHeaders = {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+
+    // Un seul appel — /admin/dashboard/stats contient TOUT
+    fetch('/admin/dashboard/stats', { headers: ajaxHeaders })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' sur /admin/dashboard/stats');
+            return r.json();
+        })
+        .then(response => {
+            const s = response.data || response;
+
+            // Commandes depuis les stats (pas besoin d'un 2e appel)
+            const totalCommandes     = s.commandes?.total     || 0;
+            const commandesLivrees   = s.commandes?.livrees   || 0;
+            const commandesEnAttente = s.commandes?.en_attente || 0;
+
+            dashboardPage.innerHTML = `
+            <div class="main-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 fw-bold mb-1">
+                            <i class="bi bi-speedometer2 text-primary me-2"></i>
+                            Tableau de bord Administrateur
+                        </h1>
+                        <p class="text-muted mb-0">Vue d'ensemble de votre activité commerciale</p>
+                    </div>
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                 style="width:32px;height:32px;font-size:14px;">A</div>
+                            <i class="bi bi-person-circle fs-4"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2">
+                            <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i>Mon Profil</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="openChangePasswordModal()"><i class="bi bi-lock me-2"></i>Changer Mot de Passe</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/logout" id="logout-form" style="display:none;">
+                                    <input type="hidden" name="_token" value="${csrfToken}">
+                                </form>
+                                <a class="dropdown-item text-danger" href="#"
+                                   onclick="event.preventDefault();document.getElementById('logout-form').submit();">
+                                   <i class="bi bi-box-arrow-right me-2"></i>Déconnexion
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-success h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
+
+            <!-- Cartes statistiques -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-primary h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon primary"><i class="bi bi-currency-exchange"></i></div>
+                            <p class="text-muted mb-1">CHIFFRE D'AFFAIRES</p>
+                            <h2 class="stat-number">
+                                ${(s.chiffre_affaires || 0).toLocaleString('fr-FR')}
+                                <small class="fs-6 text-muted">FCFA</small>
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-success h-100">
+                        <div class="card-body p-4">
                             <div class="stat-icon success"><i class="bi bi-cart-check"></i></div>
                             <p class="text-muted mb-1">COMMANDES</p>
-                            <div class="d-flex align-items-center">
-                                <h2 class="stat-number me-3">${stats.commandes?.total || 0}</h2>
-                                <div><span class="badge bg-success">${stats.commandes?.livrees || 0} livrées</span>${stats.commandes?.en_attente > 0 ? `<span class="badge bg-warning d-block mt-1">${stats.commandes?.en_attente || 0} en attente</span>` : ''}</div>
+                            <h2 class="stat-number">${totalCommandes}</h2>
+                            <span class="badge bg-success">${commandesLivrees} livrées</span>
+                            ${commandesEnAttente > 0
+                                ? `<span class="badge bg-warning ms-1">${commandesEnAttente} en attente</span>`
+                                : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-info h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
+                            <p class="text-muted mb-1">VENTES</p>
+                            <h2 class="stat-number">${s.nb_ventes || 0}</h2>
+                            <small class="text-muted">
+                                ${(s.total_ventes || 0).toLocaleString('fr-FR')} FCFA total
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card border-warning h-100">
+                        <div class="card-body p-4">
+                            <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
+                            <p class="text-muted mb-1">VERSEMENTS</p>
+                            <h2 class="stat-number">
+                                ${(s.total_versements || 0).toLocaleString('fr-FR')}
+                                <small class="fs-6 text-muted">FCFA</small>
+                            </h2>
+                            <span class="badge bg-success">${s.versements_valides || 0} validés</span>
+                            <span class="badge bg-warning ms-1">${s.versements_en_attente || 0} en attente</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clients récents -->
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people me-2"></i>
+                                Clients (${s.total_clients || 0} au total,
+                                ${s.clients_aujourd_hui || 0} aujourd'hui)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="nouveaux-clients-list">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                                    Chargement des clients...
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-info h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="stat-icon info"><i class="bi bi-graph-up"></i></div>
-                            <p class="text-muted mb-1">VENTES</p>
-                            <h2 class="stat-number">${stats.total_ventes || 0}</h2>
-                            <div class="d-flex justify-content-between"><small class="text-muted">Transactions</small><small class="text-muted">${stats.total_quantite || 0} unités</small></div>
+
+            <!-- Performance commerciaux -->
+            <div class="row g-4 mb-4">
+                <div class="col-12">
+                    <div class="performance-card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-trophy me-2"></i>
+                                    Performance des commerciaux
+                                </h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="performance-content">
+                                ${renderPerformance(s.performance || [])}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card border-warning h-100">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start">
+            `;
+
+            // Charger les clients en AJAX séparément
+            loadNouveauxClients(ajaxHeaders);
+
+            // Mettre à jour les badges de la sidebar
+            updateBadgesFromStats(s);
+
+            const savedLang = localStorage.getItem('language') || 'fr';
+            updateUILanguage(savedLang);
+        })
+        .catch(error => {
+            console.error('Erreur chargement dashboard:', error);
+            dashboardPage.innerHTML = `
+                <div class="alert alert-danger m-4">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Erreur de chargement: <strong>${error.message}</strong>
+                    <hr>
+                    <small>Vérifiez que <code>DashboardController::stats()</code> fonctionne
+                    et que la route <code>/admin/dashboard/stats</code> est bien déclarée.</small>
+                    <br>
+                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadDashboard()">
+                        🔄 Réessayer
+                    </button>
+                </div>`;
+        });
+}
+
+// ── 2. renderPerformance ──────────────────────
+function renderPerformance(performance) {
+    if (!performance || performance.length === 0) {
+        return `
+            <div class="text-center py-5">
+                <i class="bi bi-bar-chart text-muted fs-1"></i>
+                <p class="text-muted mt-3">Aucune donnée de performance disponible</p>
+                <p class="text-muted small">Les données apparaîtront lorsque les commerciaux auront effectué des activités</p>
+            </div>`;
+    }
+
+    const rows = performance.map(com => {
+        const pct = Math.min(100,
+            ((com.total_ventes || 0) / Math.max(1, com.objectif || 500000)) * 100
+        ).toFixed(1);
+
+        return `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="commercial-avatar me-3">
+                            ${(com.nom || 'C')[0].toUpperCase()}
+                        </div>
                         <div>
-                            <div class="stat-icon warning"><i class="bi bi-cash-stack"></i></div>
-                            <p class="text-muted mb-1">VERSEMENTS</p>
-                            <h2 class="stat-number">${((stats.versements?.valides || 0) + (stats.versements?.en_attente || 0)).toLocaleString('fr-FR')}</h2>
-                            <div class="d-flex justify-content-between"><span class="badge bg-success">${(stats.versements?.valides || 0).toLocaleString('fr-FR')} validés</span>${stats.versements?.en_attente > 0 ? `<span class="badge bg-warning">${(stats.versements?.en_attente || 0).toLocaleString('fr-FR')} en attente</span>` : ''}</div>
+                            <strong>${com.nom || 'Non défini'}</strong>
+                            <div class="text-muted small">${com.role || 'Commercial'}</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="performance-card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Performance des commerciaux</h5>
-                        <a href="#" class="btn btn-sm btn-light" onclick="navigateTo(\'rapports\')">Voir plus <i class="bi bi-arrow-right"></i></a>
+                </td>
+                <td>
+                    <strong class="text-primary">${(com.total_ventes || 0).toLocaleString('fr-FR')}</strong>
+                    <small class="text-muted d-block">FCFA</small>
+                </td>
+                <td><span class="performance-badge">${com.total_quantite_vendue || 0}</span></td>
+                <td><strong class="text-success">${com.total_commandes || 0}</strong></td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="progress-custom flex-grow-1 me-2">
+                            <div class="progress-bar" style="width:${pct}%"></div>
+                        </div>
+                        <span class="fw-bold">${pct}%</span>
                     </div>
-                </div>
-                <div class="card-body">
-                    ${stats.performance_commerciaux && stats.performance_commerciaux.length > 0 ? `
-                    <div class="table-responsive">
-                        <table class="table table-custom">
-                            <thead><tr><th>Commercial</th><th>Ventes</th><th>Quantité</th><th>Commandes</th><th>Performance</th></tr></thead>
-                            <tbody>
-                                ${stats.performance_commerciaux.map(commercial => {
-                                    const totalVentes = commercial.total_ventes || 0;
-                                    const totalCommandes = commercial.total_commandes || 0;
-                                    const objectif = commercial.objectif || (commercial.total_commandes * 1.2 || 100000);
-                                    const performance = Math.min(100, (totalVentes / Math.max(1, objectif)) * 100);
-                                    return `<tr>
-                                        <td><div class="d-flex align-items-center"><div class="commercial-avatar me-3">${commercial.nom ? commercial.nom.charAt(0).toUpperCase() : 'C'}</div><div><strong>${commercial.nom || 'Non défini'}</strong><div class="text-muted small">${commercial.role || 'Commercial'}</div></div></div></td>
-                                        <td><strong class="text-primary">${totalVentes.toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
-                                        <td><span class="performance-badge">${commercial.total_quantite_vendue || 0}</span></td>
-                                        <td><strong class="text-success">${totalCommandes.toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
-                                        <td><div class="d-flex align-items-center"><div class="progress-custom flex-grow-1 me-2"><div class="progress-bar" style="width: ${performance}%"></div></div><span class="fw-bold">${performance.toFixed(1)}%</span></div></td>
-                                    </tr>`;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    ` : `
-                    <div class="text-center py-5"><i class="bi bi-bar-chart text-muted fs-1"></i><p class="text-muted mt-3">Aucune donnée de performance disponible</p><p class="text-muted small">Les données apparaîtront lorsque les commerciaux auront effectué des ventes</p></div>
-                    `}
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
+                </td>
+            </tr>`;
+    }).join('');
 
-    dashboardPage.innerHTML = content;
+    return `
+        <div class="table-responsive">
+            <table class="table table-custom">
+                <thead>
+                    <tr>
+                        <th>Commercial</th>
+                        <th>Ventes</th>
+                        <th>Quantité</th>
+                        <th>Commandes</th>
+                        <th>Performance</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
+
+// ── 3. loadNouveauxClients ────────────────────
+// ── 3. loadNouveauxClients (version améliorée) ────────────────────
+function loadNouveauxClients(headers) {
+    // Headers par défaut si non fournis
+    const defaultHeaders = {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+
+    fetch('/clients?limit=5', {
+        headers: headers || defaultHeaders
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        const container = document.getElementById('nouveaux-clients-list');
+        if (!container) return;
+
+        // ✅ Supporte plusieurs formats de réponse
+        let clients = [];
+        if (Array.isArray(data)) {
+            clients = data;
+        } else if (data.data && Array.isArray(data.data)) {
+            clients = data.data;
+        } else if (data.clients && Array.isArray(data.clients)) {
+            clients = data.clients;
+        } else if (data.success && data.data && Array.isArray(data.data)) {
+            clients = data.data;
+        }
+
+        if (clients.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-people text-muted fs-1"></i>
+                    <p class="text-muted mt-2 mb-0">Aucun client enregistré</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-custom">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Téléphone</th>
+                            <th>Date</th>
+                            <th>Zone</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${clients.slice(0, 5).map(client => `
+                            <tr>
+                                <td><strong>${escapeHtml(client.nom) || '-'}</strong></td>
+                                <td>${escapeHtml(client.telephone) || '-'}</td>
+                                <td>${client.created_at
+                                    ? new Date(client.created_at).toLocaleDateString('fr-FR')
+                                    : '-'}</td>
+                                <td>${escapeHtml(client.zone?.nom) || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    })
+    .catch(err => {
+        console.error('Erreur chargement clients:', err);
+        const container = document.getElementById('nouveaux-clients-list');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-warning text-center py-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Impossible de charger les clients
+                </div>`;
+        }
+    });
+}
+
+// Fonction utilitaire pour sécuriser l'affichage HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// ── 4. loadVentesStats ────────────────────────
+
+function loadVentesStats() {
+    console.log('loadVentesStats: stats déjà incluses dans /admin/dashboard/stats');
+}
+
+// ── 5. loadVersementsStats ────────────────────
+function loadVersementsStats() {
+    console.log('loadVersementsStats: stats déjà incluses dans /admin/dashboard/stats');
+}
+
+// ── 6. loadPerformanceCommerciaux ─────────────
+function loadPerformanceCommerciaux() {
+    console.log('loadPerformanceCommerciaux: performance déjà incluse dans /admin/dashboard/stats');
+}
+
+// ── 7. updateBadgesFromStats ──────────────────
+// Met à jour les badges de la sidebar depuis les stats déjà chargées
+function updateBadgesFromStats(s) {
+    function setBadge(desktopId, mobileId, count) {
+        [desktopId, mobileId].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = count;
+            el.style.display = count > 0 ? 'inline' : 'none';
+        });
+    }
+
+    setBadge('commandes-badge',   'commandes-badge-mobile',   s.commandes?.en_attente || 0);
+    setBadge('versements-badge',  'versements-badge-mobile',  s.versements_en_attente || 0);
+    setBadge('activites-badge',   'activites-badge-mobile',   newCount || 0);
+
+    // Pour ventes, produits, clients — appels séparés légers
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const headers = {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+
+    const safeFetch = (url, id1, id2) => {
+        fetch(url, { headers })
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(d => setBadge(id1, id2, d.count || 0))
+            .catch(() => {}); // silencieux si la route n'existe pas encore
+    };
+
+    safeFetch('/ventes/count',   'ventes-badge',   'ventes-badge-mobile');
+    safeFetch('/produits/count', 'produits-badge', 'produits-badge-mobile');
+    safeFetch('/clients/count',  'clients-badge',  'clients-badge-mobile');
+    safeFetch('/commandes/count','commandes-badge','commandes-badge-mobile');
+
+    // Livraisons depuis les données déjà en mémoire
+    const livraisonsEnCours = (typeof livraisonsData !== 'undefined')
+        ? livraisonsData.filter(l => l.statut === 'en_cours').length : 0;
+    setBadge('livraisons-badge', 'livraisons-badge-mobile', livraisonsEnCours);
+}
+
+// ── 8. updateBadges (appelée au démarrage) ────
+function updateBadges() {
+    updateBadgesFromStats(stats || {});
+}
+function loadPerformanceCommerciaux() {
+   fetch('/admin/performance/commerciaux', {  // ← Route web, pas API
+    headers: {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-Requested-With': 'XMLHttpRequest'
+    }
+})
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById('performance-content');
+        if (data.success && data.data && data.data.length > 0) {
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead><tr><th>Commercial</th><th>Ventes</th><th>Quantité</th><th>Commandes</th><th>Performance</th></tr></thead>
+                        <tbody>
+                            ${data.data.map(com => `
+                                <tr>
+                                    <td><div class="d-flex align-items-center"><div class="commercial-avatar me-3">${com.nom?.[0] || 'C'}</div><div><strong>${com.nom || 'Non défini'}</strong><div class="text-muted small">${com.role || 'Commercial'}</div></div></div></td>
+                                    <td><strong class="text-primary">${(com.total_ventes || 0).toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
+                                    <td><span class="performance-badge">${com.total_quantite_vendue || 0}</span></td>
+                                    <td><strong class="text-success">${(com.total_commandes || 0).toLocaleString('fr-FR')}</strong><small class="text-muted d-block">FCFA</small></td>
+                                    <td><div class="d-flex align-items-center"><div class="progress-custom flex-grow-1 me-2"><div class="progress-bar" style="width: ${Math.min(100, ((com.total_ventes || 0) / Math.max(1, com.objectif || 100000)) * 100)}%"></div></div><span class="fw-bold">${Math.min(100, ((com.total_ventes || 0) / Math.max(1, com.objectif || 100000)) * 100).toFixed(1)}%</span></div></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<div class="text-center py-5"><i class="bi bi-bar-chart text-muted fs-1"></i><p class="text-muted mt-3">Aucune donnée de performance disponible</p></div>';
+        }
+    })
+    .catch(console.error);
 }
 
 // ========== CLIENTS ==========
