@@ -18,30 +18,30 @@ class ClientController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Si c'est une requête AJAX/AJAX, retourner JSON
-        if ($request->ajax() || $request->wantsJson()) {
+        // Détecter si c'est une requête AJAX ou API
+        $isAjax = $request->ajax() || 
+                  $request->wantsJson() || 
+                  $request->header('X-Requested-With') === 'XMLHttpRequest' ||
+                  $request->is('api/*');
+        
+        if ($isAjax) {
             return response()->json([
                 'success' => true,
                 'data' => $clients
             ]);
         }
         
-        // Sinon, retourner la vue HTML
+        // Retourner la vue HTML
         return view('clients.index', compact('clients'));
     }
 
-    /**
-     * Affiche le formulaire de création
-     */
+    // Les autres méthodes restent identiques...
     public function create()
     {
         $zones = Zone::all();
         return view('clients.create', compact('zones'));
     }
 
-    /**
-     * Enregistre un nouveau client
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -57,18 +57,12 @@ class ClientController extends Controller
         return redirect()->route('clients.index')->with('success', 'Client créé avec succès');
     }
 
-    /**
-     * Affiche un client spécifique
-     */
     public function show($id)
     {
         $client = Client::with(['zone', 'commandes'])->findOrFail($id);
         return view('clients.show', compact('client'));
     }
 
-    /**
-     * Affiche le formulaire d'édition
-     */
     public function edit($id)
     {
         $client = Client::findOrFail($id);
@@ -76,9 +70,6 @@ class ClientController extends Controller
         return view('clients.edit', compact('client', 'zones'));
     }
 
-    /**
-     * Met à jour un client
-     */
     public function update(Request $request, $id)
     {
         $client = Client::findOrFail($id);
@@ -96,9 +87,6 @@ class ClientController extends Controller
         return redirect()->route('clients.index')->with('success', 'Client mis à jour avec succès');
     }
 
-    /**
-     * Supprime un client
-     */
     public function destroy($id)
     {
         $client = Client::findOrFail($id);
@@ -107,9 +95,6 @@ class ClientController extends Controller
         return redirect()->route('clients.index')->with('success', 'Client supprimé avec succès');
     }
 
-    /**
-     * Retourne le nombre de clients (pour les badges)
-     */
     public function count()
     {
         return response()->json(['count' => Client::count()]);
