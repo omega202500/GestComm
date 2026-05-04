@@ -11,29 +11,30 @@ class ClientController extends Controller
     /**
      * Affiche la liste des clients (page HTML)
      */
-    public function index(Request $request)
-    {
-        $clients = Client::with(['zone'])
-            ->withCount('commandes')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        // Détecter si c'est une requête AJAX ou API
-        $isAjax = $request->ajax() || 
-                  $request->wantsJson() || 
-                  $request->header('X-Requested-With') === 'XMLHttpRequest' ||
-                  $request->is('api/*');
-        
-        if ($isAjax) {
-            return response()->json([
-                'success' => true,
-                'data' => $clients
-            ]);
-        }
-        
-        // Retourner la vue HTML
+  public function index(Request $request)
+{
+    // Si l'URL contient ?format=html, forcer la vue HTML
+    if ($request->get('format') === 'html') {
+        $clients = Client::with(['zone'])->withCount('commandes')->orderBy('created_at', 'desc')->get();
         return view('clients.index', compact('clients'));
     }
+    
+    // Si l'URL contient ?format=json, forcer le JSON
+    if ($request->get('format') === 'json') {
+        $clients = Client::with(['zone'])->withCount('commandes')->orderBy('created_at', 'desc')->get();
+        return response()->json(['success' => true, 'data' => $clients]);
+    }
+    
+    // Par défaut, pour une requête normale de navigateur, retourner HTML
+    if (!$request->ajax() && !$request->wantsJson()) {
+        $clients = Client::with(['zone'])->withCount('commandes')->orderBy('created_at', 'desc')->get();
+        return view('clients.index', compact('clients'));
+    }
+    
+    // Pour les requêtes AJAX
+    $clients = Client::with(['zone'])->withCount('commandes')->orderBy('created_at', 'desc')->get();
+    return response()->json(['success' => true, 'data' => $clients]);
+}
 
     // Les autres méthodes restent identiques...
     public function create()
