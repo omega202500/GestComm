@@ -80,11 +80,7 @@ class ProduitController extends Controller
     }
 
     public function count()
-    {
-        $count = Produits::count();
-        return response()->json([
-            'success' => true,
-            'count' => $count
-        ]);
-    }
+{
+    return response()->json(['count' => Produits::count()]);
+}
 }

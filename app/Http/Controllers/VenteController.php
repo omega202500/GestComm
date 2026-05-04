@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vente;
@@ -88,12 +88,23 @@ class VenteController extends Controller
         }
     }
 
-    public function count() {
-        return response()->json([
-            'success' => true,
-            'count'   => Vente::whereDate('created_at', today())->count()
-        ]);
-    }
+   public function count()
+{
+    return response()->json([
+        'success' => true,
+        'count'   => \App\Models\Vente::count(),
+    ]);
+}
+
+public function stats()
+{
+    return response()->json([
+        'success'    => true,
+        'total'      => \App\Models\Vente::sum('montant_total'),
+        'count'      => \App\Models\Vente::count(),
+        'aujourd_hui'=> \App\Models\Vente::whereDate('created_at', today())->sum('montant_total'),
+    ]);
+}
 
     // Liste des ventes (admin)
     public function index(Request $request)

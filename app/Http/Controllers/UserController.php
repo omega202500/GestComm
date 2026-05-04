@@ -1,123 +1,123 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Models;
 
-use App\Models\User;
-use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
-class UserController extends Controller
+class User extends Authenticatable
 {
-    public function index()
-    {
-           $admins = User::whereIn('role', ['admin', 'super_admin'])->get();
-            $commerciaux = User::whereIn('role', ['commercial', 'terrain', 'chauffeur'])->get();
-            return view('users.index', compact('admins', 'commerciaux'));
-    }
+    use HasApiTokens, Notifiable;
 
-    public function edit($id)
-    {
-        $user = User::findOrFail($id);
+    protected $fillable = [
+        'nom',
+        'email',
+        'telephone',
+        'password',
+        'role',
+        'statut',
+        'photo'
+    ];
+    public function index(Request $request)
+{
+    $query = User::query();
+    
+    // Filtrer par rôle si demandé
+    if ($request->has('role')) {
+        $query->where('role', $request->role);
+    }
+    
+    $users = $query->get();
+    
+    // Si c'est une requête AJAX, retourner JSON
+    if ($request->ajax() || $request->wantsJson()) {
         return response()->json([
             'success' => true,
-            'user' => $user
+            'data' => $users
         ]);
     }
+    
+    // Sinon, retourner la vue
+    return view('users.index', compact('users'));
+}
 
-    public function store(Request $request)
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'statut' => 'boolean',
+    ];
+
+    // Mutateur pour hasher le mot de passe automatiquement
+    public function setPasswordAttribute($value)
     {
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
-            'role' => 'required|in:admin,commercial,terrain,chauffeur',
-            'telephone' => 'nullable|string|max:20',
-            'statut' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
-        ]);
-
-        $validated['password'] = Hash::make($validated['password']);
-
-        if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('avatars', 'public');
-            $validated['photo'] = $path;
+        if (!empty($value)) {
+            $this->attributes['password'] = Hash::make($value);
         }
-
-        User::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur créé avec succès'
-        ]);
     }
 
-    public function update(Request $request, $id)
+    // ======================
+    // RELATIONS
+    // ======================
+    
+    /**
+     * Relation avec les commandes (pour les commerciaux)
+     */
+    public function commandes()
     {
-        $user = User::findOrFail($id);
-
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
-            'password' => 'nullable|string|min:8',
-            'role' => 'required|in:admin,commercial,terrain,chauffeur',
-            'telephone' => 'nullable|string|max:20',
-            'statut' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
-        ]);
-
-        if ($request->filled('password')) {
-            $validated['password'] = Hash::make($request->password);
-        } else {
-            unset($validated['password']);
-        }
-
-        if ($request->hasFile('photo')) {
-            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-                Storage::disk('public')->delete($user->photo);
-            }
-            $path = $request->file('photo')->store('avatars', 'public');
-            $validated['photo'] = $path;
-        }
-
-        $user->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur mis à jour avec succès'
-        ]);
+        return $this->hasMany(Commande::class, 'commercial_id');
     }
-
-    public function destroy($id)
+    
+    /**
+     * Relation avec les ventes (pour les chauffeurs)
+     */
+    public function ventes()
     {
-        $user = User::findOrFail($id);
-
-        // Empêcher la suppression du super admin (id = 1)
-        if ($user->id === 1 || $user->role === 'super_admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Impossible de supprimer le super administrateur'
-            ], 403);
-        }
-
-        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-            Storage::disk('public')->delete($user->photo);
-        }
-
-        $user->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur supprimé avec succès'
-        ]);
+        return $this->hasMany(Vente::class, 'commercial_id');
     }
-
-    public function getData($id)
+    
+    /**
+     * Relation avec les versements
+     */
+    public function versements()
     {
-        $user = User::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'user' => $user
-        ]);
-   }
+        return $this->hasMany(Versement::class, 'commercial_id');
+    }
+    
+    /**
+     * Relation avec les livraisons (en tant que terrain)
+     */
+    public function livraisonsTerrain()
+    {
+        return $this->hasMany(Livraison::class, 'terrain_id');
+    }
+    
+    /**
+     * Relation avec les livraisons (en tant que chauffeur)
+     */
+    public function livraisonsChauffeur()
+    {
+        return $this->hasMany(Livraison::class, 'chauffeur_id');
+    }
+    
+    /**
+     * Relation avec les retours
+     */
+    public function retours()
+    {
+        return $this->hasMany(Retour::class, 'commercial_id');
+    }
+    
+    /**
+     * Relation avec la zone
+     */
+    public function zone()
+    {
+        return $this->belongsTo(Zone::class);
+    }
 }
