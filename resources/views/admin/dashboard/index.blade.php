@@ -3612,11 +3612,7 @@ function loadClients() {
         </div>
     `;
 
-    fetch('/clients', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
+    fetch('/clients?format=html')  // Forcer le format HTML
     .then(response => response.text())
     .then(html => {
         document.getElementById('main-content').innerHTML = html;
