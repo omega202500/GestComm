@@ -61,7 +61,8 @@ class ClientController extends Controller
     public function show($id)
     {
         $client = Client::with(['zone', 'commandes'])->findOrFail($id);
-        return view('clients.show', compact('client'));
+        $historique= $clent->commandes()->whith('commercial')->orderBy('created_at', 'desc')->get();
+        return view('clients.show', compact('client','historique'));
     }
 
     public function edit($id)
