@@ -76,12 +76,21 @@
                 @endif
             </td>
             <td>
-                <a href="{{ route('produits.edit', $produit->id) }}" class="btn btn-sm btn-primary me-1">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                <button type="button" class="btn btn-sm btn-danger" onclick="deleteProduct({{ $produit->id }}, '{{ addslashes($produit->nom) }}')">
-                    <i class="bi bi-trash"></i>
-                </button>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <a href="{{ route('clients.edit', $client->id) }}" 
+                        class="btn btn-sm btn-primary" title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button type="button" 
+                        class="btn btn-sm btn-danger" 
+                        data-client-id="{{ $client->id }}"
+                        data-client-nom="{{ addslashes($client->nom) }}"
+                        onclick="handleDeleteClient(this)"
+                        title="Supprimer">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+
             </td>
          </tr>
         @empty
