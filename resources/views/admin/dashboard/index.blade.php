@@ -1212,10 +1212,10 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" data-page="produits" onclick="bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas')).hide()">
-                        <i class="bi bi-box"></i>
-                        <span data-translate="products">Produits</span>
-                        <span class="badge bg-warning badge-notification" id="produits-badge-mobile">0</span>
+                    <a class="nav-link" href="/clients?format=html">
+                        <i class="bi bi-people"></i>
+                        <span data-translate="clients">Clients</span>
+                        <span class="badge bg-warning badge-notification" id="clients-badge">0</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -1655,7 +1655,7 @@ function getStatutBadge(statut) {
 function getStatutLabel(statut) {
     const labels = {
         'en_attente': 'En attente',
-        'en_cours': 'En cours', 
+        'en_cours': 'En cours',
         'livree': 'Livrée',
         'annulee': 'Annulée',
         'validee': 'Validée',
@@ -1774,7 +1774,7 @@ function navigateTo(page) {
 }
 function loadCommandes() {
     const container = document.getElementById('main-content');
-    
+
     container.innerHTML = `
         <div class="main-header">
             <div>
@@ -1886,19 +1886,19 @@ function loadCommandes() {
             </div>
         </div>
     `;
-    
+
     // Charger les commandes
     chargerCommandes();
 }
 
 function chargerCommandes(filtres = {}) {
     const url = new URL('/commandes', window.location.origin);
-    
+
     // Ajouter les filtres
     if (filtres.statut) url.searchParams.append('statut', filtres.statut);
     if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
     if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
-    
+
     fetch(url, {
         headers: {
             'Accept': 'application/json',
@@ -1933,7 +1933,7 @@ function chargerCommandes(filtres = {}) {
 function afficherCommandes(commandes) {
     const tbody = document.getElementById('commandes-table-body');
     if (!tbody) return;
-    
+
     if (!commandes || commandes.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -1945,7 +1945,7 @@ function afficherCommandes(commandes) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = commandes.map(commande => {
         // Déterminer le badge de statut
         let badgeHtml = '';
@@ -1965,7 +1965,7 @@ function afficherCommandes(commandes) {
             default:
                 badgeHtml = `<span class="badge bg-secondary">${commande.statut}</span>`;
         }
-        
+
         return `
             <tr>
                 <td><strong>#${commande.id}</strong></td>
@@ -2000,7 +2000,7 @@ function mettreAJourStats(commandes) {
     const enAttente = commandes.filter(c => c.statut === 'en_attente').length;
     const livrees = commandes.filter(c => c.statut === 'livree').length;
     const montantTotal = commandes.reduce((sum, c) => sum + parseInt(c.montant_total || 0), 0);
-    
+
     document.getElementById('stat_total').textContent = total;
     document.getElementById('stat_attente').textContent = enAttente;
     document.getElementById('stat_livrees').textContent = livrees;
@@ -2011,7 +2011,7 @@ function filtrerCommandes() {
     const statut = document.getElementById('filtre_statut').value;
     const date_debut = document.getElementById('filtre_date_debut').value;
     const date_fin = document.getElementById('filtre_date_fin').value;
-    
+
     chargerCommandes({ statut, date_debut, date_fin });
 }
 
@@ -2033,7 +2033,7 @@ function voirDetailsCommande(id) {
 }
 function loadVentes() {
     const container = document.getElementById('main-content');
-    
+
     container.innerHTML = `
         <div class="main-header">
             <div>
@@ -2125,7 +2125,7 @@ function loadVentes() {
             </div>
         </div>
     `;
-    
+
     // Charger les commerciaux pour le filtre
     chargerCommerciaux();
     // Charger les ventes
@@ -2150,8 +2150,8 @@ function chargerCommerciaux() {
     .then(data => {
         const select = document.getElementById('filtre_commercial');
         if (select && data.success && data.data) {
-            select.innerHTML = '<option value="">Tous les commerciaux</option>' + 
-                data.data.map(user => 
+            select.innerHTML = '<option value="">Tous les commerciaux</option>' +
+                data.data.map(user =>
                     `<option value="${user.id}">${escapeHtml(user.nom)}</option>`
                 ).join('');
         }
@@ -2164,11 +2164,11 @@ function chargerCommerciaux() {
 
 function chargerVentes(filtres = {}) {
     const url = new URL('/ventes', window.location.origin);
-    
+
     if (filtres.commercial_id) url.searchParams.append('commercial_id', filtres.commercial_id);
     if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
     if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
-    
+
     fetch(url, {
         headers: {
             'Accept': 'application/json',
@@ -2189,12 +2189,12 @@ function chargerVentes(filtres = {}) {
 function afficherVentes(ventes) {
     const tbody = document.getElementById('ventes-table-body');
     if (!tbody) return;
-    
+
     if (!ventes || ventes.length === 0) {
         tbody.innerHTML = '<td><td colspan="7" class="text-center py-4">Aucune vente trouvée</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = ventes.map(vente => `
         <tr>
             <td><strong>#${vente.id}</strong></td>
@@ -2218,7 +2218,7 @@ function mettreAJourStatsVentes(ventes) {
     const total = ventes.length;
     const ca = ventes.reduce((sum, v) => sum + parseInt(v.montant_total || 0), 0);
     const articles = ventes.reduce((sum, v) => sum + (v.total_quantite || 0), 0);
-    
+
     document.getElementById('ventes_total').textContent = total;
     document.getElementById('ventes_ca').innerHTML = `${ca.toLocaleString('fr-FR')} FCFA`;
     document.getElementById('ventes_articles').textContent = articles;
@@ -2290,16 +2290,16 @@ function afficherModalDetails(item, type) {
             </div>
         </div>
     `;
-    
+
     // Supprimer l'ancien modal s'il existe
     const oldModal = document.getElementById('detailsModal');
     if (oldModal) oldModal.remove();
-    
+
     // Ajouter et afficher le nouveau modal
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
     modal.show();
-    
+
     // Nettoyer après fermeture
     document.getElementById('detailsModal').addEventListener('hidden.bs.modal', function() {
         this.remove();
@@ -2307,7 +2307,7 @@ function afficherModalDetails(item, type) {
 }
 function loadVersements() {
     const container = document.getElementById('main-content');
-    
+
     container.innerHTML = `
         <div class="main-header">
             <div>
@@ -2410,17 +2410,17 @@ function loadVersements() {
             </div>
         </div>
     `;
-    
+
     chargerVersements();
 }
 
 function chargerVersements(filtres = {}) {
     const url = new URL('/versements', window.location.origin);
-    
+
     if (filtres.statut) url.searchParams.append('statut', filtres.statut);
     if (filtres.date_debut) url.searchParams.append('date_debut', filtres.date_debut);
     if (filtres.date_fin) url.searchParams.append('date_fin', filtres.date_fin);
-    
+
     fetch(url, {
         headers: {
             'Accept': 'application/json',
@@ -2447,12 +2447,12 @@ function chargerVersements(filtres = {}) {
 function afficherVersements(versements) {
     const tbody = document.getElementById('versements-table-body');
     if (!tbody) return;
-    
+
     if (!versements || versements.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4">Aucun versement trouvé</td></tr>`;
         return;
     }
-    
+
     tbody.innerHTML = versements.map(v => `
         <tr>
             <td><strong>#${v.id}</strong></td>
@@ -2478,7 +2478,7 @@ function mettreAJourStatsVersements(versements) {
     const total = versements.length;
     const montantTotal = versements.reduce((sum, v) => sum + parseInt(v.montant || 0), 0);
     const enAttente = versements.filter(v => v.statut === 'en_attente').length;
-    
+
     document.getElementById('versements_total').textContent = total;
     document.getElementById('versements_montant').innerHTML = `${montantTotal.toLocaleString('fr-FR')} FCFA`;
     document.getElementById('versements_attente').textContent = enAttente;
@@ -2497,7 +2497,7 @@ function filtrerVersements() {
     const statut = document.getElementById('filtre_statut_versement')?.value;
     const date_debut = document.getElementById('filtre_date_debut_versement')?.value;
     const date_fin = document.getElementById('filtre_date_fin_versement')?.value;
-    
+
     chargerVersements({ statut, date_debut, date_fin });
 }
 
@@ -2520,7 +2520,7 @@ function voirDetailsVersement(id) {
 
 function loadRapports() {
     const container = document.getElementById('main-content');
-    
+
     container.innerHTML = `
         <div class="main-header">
             <div>
@@ -2623,7 +2623,7 @@ function loadRapports() {
             </div>
         </div>
     `;
-    
+
     // Écouter le changement de période personnalisée
     document.getElementById('rapport_periode').addEventListener('change', function() {
         const personnalise = this.value === 'personnalise';
@@ -2631,7 +2631,7 @@ function loadRapports() {
         document.getElementById('date_fin_div').style.display = personnalise ? 'block' : 'none';
         if (!personnalise) genererRapport();
     });
-    
+
     // Générer le rapport initial
     genererRapport();
 }
@@ -2640,7 +2640,7 @@ function genererRapport() {
     const periode = document.getElementById('rapport_periode').value;
     let date_debut = null;
     let date_fin = null;
-    
+
     if (periode === 'personnalise') {
         date_debut = document.getElementById('rapport_date_debut').value;
         date_fin = document.getElementById('rapport_date_fin').value;
@@ -2649,12 +2649,12 @@ function genererRapport() {
             return;
         }
     }
-    
+
     // Afficher loader
     const loader = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
     document.getElementById('top_commerciaux').innerHTML = loader;
     document.getElementById('top_produits').innerHTML = loader;
-    
+
     // Récupérer les statistiques
     fetch('/admin/dashboard/stats', {
         headers: {
@@ -2673,7 +2673,7 @@ function genererRapport() {
         }
     })
     .catch(error => console.error('Erreur stats:', error));
-    
+
     // Charger le classement des commerciaux
     fetch('/admin/performance/commerciaux', {
         headers: {
@@ -2687,7 +2687,7 @@ function genererRapport() {
             const topCommerciaux = [...data.data]
                 .sort((a, b) => (b.total_ventes || 0) - (a.total_ventes || 0))
                 .slice(0, 5);
-            
+
             const html = topCommerciaux.map((c, index) => `
                 <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                     <div>
@@ -2703,7 +2703,7 @@ function genererRapport() {
                     </div>
                 </div>
             `).join('');
-            
+
             document.getElementById('top_commerciaux').innerHTML = html || '<p class="text-center">Aucune donnée disponible</p>';
         }
     })
@@ -2711,7 +2711,7 @@ function genererRapport() {
         console.error('Erreur:', error);
         document.getElementById('top_commerciaux').innerHTML = '<p class="text-center text-danger">Erreur de chargement</p>';
     });
-    
+
     // Charger le top produits (à adapter selon votre API)
     fetch('/produits?limit=5', {
         headers: {
@@ -2734,7 +2734,7 @@ function genererRapport() {
                 </div>
             </div>
         `).join('');
-        
+
         document.getElementById('top_produits').innerHTML = html || '<p class="text-center">Aucun produit trouvé</p>';
     })
     .catch(error => {
@@ -3412,9 +3412,9 @@ function loadNouveauxClients(headers) {
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
         'X-Requested-With': 'XMLHttpRequest'
     };
-    
-    fetch('/clients?limit=5', { 
-        headers: headers || defaultHeaders 
+
+    fetch('/clients?limit=5', {
+        headers: headers || defaultHeaders
     })
     .then(response => {
         if (!response.ok) {
@@ -3437,7 +3437,7 @@ function loadNouveauxClients(headers) {
         } else if (data.success && data.data && Array.isArray(data.data)) {
             clients = data.data;
         }
-        
+
         if (clients.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-4">
@@ -3463,7 +3463,7 @@ function loadNouveauxClients(headers) {
                             <tr>
                                 <td><strong>${escapeHtml(client.nom) || '-'}</strong></td>
                                 <td>${escapeHtml(client.telephone) || '-'}</td>
-                                <td>${client.created_at 
+                                <td>${client.created_at
                                     ? new Date(client.created_at).toLocaleDateString('fr-FR')
                                     : '-'}</td>
                                 <td>${escapeHtml(client.zone?.nom) || '-'}</td>
